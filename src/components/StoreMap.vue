@@ -22,7 +22,7 @@
           :style="{
             '--zw-scale': store.zoneScale,
             '--zw-tx': store.zoneTx + 'px',
-            '--zw-ty': store.zoneTy + 'px'
+            '--zw-ty': store.zoneTy + 'px',
           }"
         >
           <!-- Departments -->
@@ -55,17 +55,15 @@
             class="zone"
             :class="[
               zone.cssClass,
-              { alert: store.alertZones.includes(zone.name), active: store.activeZone === zone.name }
+              {
+                alert: store.alertZones.includes(zone.name),
+                active: store.activeZone === zone.name,
+              },
             ]"
             @click="onZoneClick(zone.name)"
           >
             <span>{{ zone.name }}</span>
           </div>
-
-          <!-- Animated pulses -->
-          <div class="pulse p1" />
-          <div class="pulse p2" />
-          <div class="pulse p3" />
         </div>
 
         <!-- Event popups -->
@@ -109,94 +107,108 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
-import { useDashboardStore } from '../stores/dashboard'
+import { ref, computed, watch, nextTick } from "vue";
+import { useDashboardStore } from "../stores/dashboard";
 
-const store = useDashboardStore()
-const mapEl = ref(null)
-const worldEl = ref(null)
-const popupsEl = ref(null)
+const store = useDashboardStore();
+const mapEl = ref(null);
+const worldEl = ref(null);
+const popupsEl = ref(null);
 
 const scenarioOptions = {
-  stockout: 'Stockout',
-  fraud: 'Fraud',
-  coldchain: 'Cold Chain',
-  delay: 'Delivery Delay',
-  normal: 'Reset'
-}
+  stockout: "Stockout",
+  fraud: "Fraud",
+  coldchain: "Cold Chain",
+  delay: "Delivery Delay",
+  normal: "Reset",
+};
 
 const zones = [
-  { name: 'Entrance', cssClass: 'z1' },
-  { name: 'Promo Aisle', cssClass: 'z2' },
-  { name: 'Cold Storage', cssClass: 'z3' },
-  { name: 'Checkout', cssClass: 'z4' }
-]
+  { name: "Entrance", cssClass: "z1" },
+  { name: "Promo Aisle", cssClass: "z2" },
+  { name: "Cold Storage", cssClass: "z3" },
+  { name: "Checkout", cssClass: "z4" },
+];
 
 // Compute zone anchor positions for popups
 function getZoneAnchor(zoneName) {
-  if (!mapEl.value) return null
-  const zoneEl = mapEl.value.querySelector(`.zone[data-zone-name="${zoneName}"]`)
+  if (!mapEl.value) return null;
+  const zoneEl = mapEl.value.querySelector(
+    `.zone[data-zone-name="${zoneName}"]`,
+  );
   if (!zoneEl) {
     // fallback: find by class matching zone name
-    const allZones = mapEl.value.querySelectorAll('.zone')
+    const allZones = mapEl.value.querySelectorAll(".zone");
     for (const el of allZones) {
       if (el.textContent.trim() === zoneName) {
-        const mapRect = mapEl.value.getBoundingClientRect()
-        const zoneRect = el.getBoundingClientRect()
+        const mapRect = mapEl.value.getBoundingClientRect();
+        const zoneRect = el.getBoundingClientRect();
         return {
           x: zoneRect.left - mapRect.left + zoneRect.width / 2,
-          y: zoneRect.top - mapRect.top + zoneRect.height * 0.22
-        }
+          y: zoneRect.top - mapRect.top + zoneRect.height * 0.22,
+        };
       }
     }
-    return null
+    return null;
   }
-  const mapRect = mapEl.value.getBoundingClientRect()
-  const zoneRect = zoneEl.getBoundingClientRect()
+  const mapRect = mapEl.value.getBoundingClientRect();
+  const zoneRect = zoneEl.getBoundingClientRect();
   return {
     x: zoneRect.left - mapRect.left + zoneRect.width / 2,
-    y: zoneRect.top - mapRect.top + zoneRect.height * 0.22
-  }
+    y: zoneRect.top - mapRect.top + zoneRect.height * 0.22,
+  };
 }
 
 // Enrich store popups with pixel positions for rendering
 const visiblePopups = computed(() => {
-  return store.popups.map(p => {
-    const anchor = getZoneAnchor(p.zone)
-    return { ...p, x: anchor?.x ?? 50, y: anchor?.y ?? 50 }
-  })
-})
+  return store.popups.map((p) => {
+    const anchor = getZoneAnchor(p.zone);
+    return { ...p, x: anchor?.x ?? 50, y: anchor?.y ?? 50 };
+  });
+});
 
 // Watch for activeZone to apply zoom transforms
-watch(() => store.activeZone, async (zoneName) => {
-  if (!zoneName || !worldEl.value || !mapEl.value) return
-  await nextTick()
-  const allZones = mapEl.value.querySelectorAll('.zone')
-  let zoneEl = null
-  for (const el of allZones) {
-    if (el.textContent.trim() === zoneName) { zoneEl = el; break }
-  }
-  if (!zoneEl) return
-  const worldRect = worldEl.value.getBoundingClientRect()
-  const zoneRect = zoneEl.getBoundingClientRect()
-  const dx = worldRect.left + worldRect.width / 2 - (zoneRect.left + zoneRect.width / 2)
-  const dy = worldRect.top + worldRect.height / 2 - (zoneRect.top + zoneRect.height / 2)
-  store.zoneTx = dx * 0.5
-  store.zoneTy = dy * 0.5
-})
+watch(
+  () => store.activeZone,
+  async (zoneName) => {
+    if (!zoneName || !worldEl.value || !mapEl.value) return;
+    await nextTick();
+    const allZones = mapEl.value.querySelectorAll(".zone");
+    let zoneEl = null;
+    for (const el of allZones) {
+      if (el.textContent.trim() === zoneName) {
+        zoneEl = el;
+        break;
+      }
+    }
+    if (!zoneEl) return;
+    const worldRect = worldEl.value.getBoundingClientRect();
+    const zoneRect = zoneEl.getBoundingClientRect();
+    const dx =
+      worldRect.left +
+      worldRect.width / 2 -
+      (zoneRect.left + zoneRect.width / 2);
+    const dy =
+      worldRect.top +
+      worldRect.height / 2 -
+      (zoneRect.top + zoneRect.height / 2);
+    store.zoneTx = dx * 0.5;
+    store.zoneTy = dy * 0.5;
+  },
+);
 
 function onZoneClick(zoneName) {
-  store.focusZone(zoneName)
-  store.updateAreaPanel(zoneName)
-  store.spawnPopup('Inspecting area', zoneName, 'agent')
+  store.focusZone(zoneName);
+  store.updateAreaPanel(zoneName);
+  store.spawnPopup("Inspecting area", zoneName, "agent");
 }
 
 function zoomIn() {
-  store.imageZoom = Math.min(2.4, store.imageZoom + 0.2)
+  store.imageZoom = Math.min(2.4, store.imageZoom + 0.2);
 }
 
 function zoomOut() {
-  store.imageZoom = Math.max(1, store.imageZoom - 0.2)
+  store.imageZoom = Math.max(1, store.imageZoom - 0.2);
 }
 </script>
 
@@ -219,7 +231,9 @@ function zoomOut() {
   justify-content: flex-end;
 }
 .scenario-controls button.active {
-  box-shadow: 0 0 0 2px rgba(194, 247, 255, 0.75), 0 0 18px rgba(0, 200, 149, 0.5);
+  box-shadow:
+    0 0 0 2px rgba(194, 247, 255, 0.75),
+    0 0 18px rgba(0, 200, 149, 0.5);
 }
 
 /* Map container */
@@ -228,7 +242,11 @@ function zoomOut() {
   height: calc(100% - 280px);
   border-radius: 14px;
   border: 1px solid rgba(194, 247, 255, 0.25);
-  background: linear-gradient(180deg, rgba(9, 59, 95, 0.32), rgba(3, 33, 59, 0.65));
+  background: linear-gradient(
+    180deg,
+    rgba(9, 59, 95, 0.32),
+    rgba(3, 33, 59, 0.65)
+  );
   position: relative;
   overflow: hidden;
 }
@@ -251,10 +269,16 @@ function zoomOut() {
   border-radius: 12px;
   border: 2px solid rgba(194, 247, 255, 0.75);
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 7.7%),
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.06) 0 1px,
+      transparent 1px 7.7%
+    ),
     linear-gradient(rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 10%),
     linear-gradient(165deg, var(--gray-13), var(--gray-14));
-  box-shadow: inset 0 0 0 1px rgba(9, 59, 95, 0.18), 0 18px 40px rgba(0, 0, 0, 0.36);
+  box-shadow:
+    inset 0 0 0 1px rgba(9, 59, 95, 0.18),
+    0 18px 40px rgba(0, 0, 0, 0.36);
 }
 
 /* Departments */
@@ -266,15 +290,33 @@ function zoomOut() {
   background: rgba(255, 255, 255, 0.88);
   color: var(--solace-dark-blue);
   font-size: 0.7rem;
-  font-family: 'Space Mono', monospace;
+  font-family: "Space Mono", monospace;
   text-transform: uppercase;
 }
-.d1 { left: 3%; top: 2.5%; }
-.d2 { left: 33%; top: 2.5%; }
-.d3 { right: 3%; top: 2.5%; }
-.d4 { right: 7%; top: 47%; }
-.d5 { right: 22%; bottom: 15%; }
-.d6 { right: 3%; bottom: 23%; }
+.d1 {
+  left: 3%;
+  top: 2.5%;
+}
+.d2 {
+  left: 33%;
+  top: 2.5%;
+}
+.d3 {
+  right: 3%;
+  top: 2.5%;
+}
+.d4 {
+  right: 7%;
+  top: 47%;
+}
+.d5 {
+  right: 22%;
+  bottom: 15%;
+}
+.d6 {
+  right: 3%;
+  bottom: 23%;
+}
 
 /* Aisles */
 .aisle {
@@ -292,14 +334,33 @@ function zoomOut() {
   right: 7px;
   color: var(--solace-deep-blue);
   font-size: 0.64rem;
-  font-family: 'Space Mono', monospace;
+  font-family: "Space Mono", monospace;
 }
-.a1 { left: 6%; top: 20%; }
-.a2 { left: 23%; top: 20%; }
-.a3 { left: 40%; top: 20%; }
-.a4 { left: 57%; top: 20%; }
-.a5 { left: 74%; top: 20%; }
-.a6 { left: 74%; top: 57%; height: 24%; }
+.a1 {
+  left: 6%;
+  top: 20%;
+}
+.a2 {
+  left: 23%;
+  top: 20%;
+}
+.a3 {
+  left: 40%;
+  top: 20%;
+}
+.a4 {
+  left: 57%;
+  top: 20%;
+}
+.a5 {
+  left: 74%;
+  top: 20%;
+}
+.a6 {
+  left: 74%;
+  top: 57%;
+  height: 24%;
+}
 
 /* Checkout lanes */
 .checkout-lane {
@@ -311,11 +372,21 @@ function zoomOut() {
   border: 1px solid rgba(9, 59, 95, 0.25);
   background: linear-gradient(145deg, #ffffff, #eaeaea);
 }
-.c1 { left: 6%; }
-.c2 { left: 18%; }
-.c3 { left: 30%; }
-.c4 { left: 42%; }
-.c5 { left: 54%; }
+.c1 {
+  left: 6%;
+}
+.c2 {
+  left: 18%;
+}
+.c3 {
+  left: 30%;
+}
+.c4 {
+  left: 42%;
+}
+.c5 {
+  left: 54%;
+}
 
 /* Zones */
 .zone {
@@ -331,47 +402,64 @@ function zoomOut() {
   align-items: center;
   text-align: center;
   font-size: 0.71rem;
-  font-family: 'Space Mono', monospace;
+  font-family: "Space Mono", monospace;
   cursor: pointer;
-  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease;
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.55);
 }
-.zone span { padding: 0 8px; }
-.zone:hover { transform: translateY(-2px) scale(1.03); }
+.zone span {
+  padding: 0 8px;
+}
+.zone:hover {
+  transform: translateY(-2px) scale(1.03);
+}
 .zone.alert {
   background: rgba(252, 168, 41, 0.38);
-  border-color: #FCA829;
-  box-shadow: 0 0 0 3px rgba(255, 247, 194, 0.72), 0 0 20px rgba(252, 168, 41, 0.45);
+  border-color: #fca829;
+  box-shadow:
+    0 0 0 3px rgba(255, 247, 194, 0.72),
+    0 0 20px rgba(252, 168, 41, 0.45);
 }
 .zone.active {
   background: rgba(171, 255, 136, 0.42);
   border-color: var(--solace-green);
-  box-shadow: 0 0 0 3px rgba(194, 247, 255, 0.82), 0 0 20px rgba(0, 200, 149, 0.45);
+  box-shadow:
+    0 0 0 3px rgba(194, 247, 255, 0.82),
+    0 0 20px rgba(0, 200, 149, 0.45);
 }
 
-.z1 { right: 15%; bottom: 6%; }
-.z2 { left: 42%; top: 52%; }
-.z3 { left: 56%; top: 44%; }
-.z4 { left: 30%; bottom: 14%; }
-
-/* Pulse dots */
-.pulse {
-  position: absolute;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: var(--solace-dark-green);
-  box-shadow: 0 0 10px rgba(0, 145, 147, 0.8);
-  animation: drift 9s linear infinite;
+.z1 {
+  right: 15%;
+  bottom: 6%;
 }
-.p1 { left: 8%; top: 16%; }
-.p2 { left: 48%; top: 80%; animation-duration: 11s; }
-.p3 { right: 8%; top: 38%; animation-duration: 8s; }
+.z2 {
+  left: 42%;
+  top: 52%;
+}
+.z3 {
+  left: 56%;
+  top: 44%;
+}
+.z4 {
+  left: 30%;
+  bottom: 14%;
+}
 
 @keyframes drift {
-  0%   { transform: translate(0, 0); opacity: 0.95; }
-  50%  { transform: translate(55px, -26px); opacity: 0.4; }
-  100% { transform: translate(110px, 18px); opacity: 0.1; }
+  0% {
+    transform: translate(0, 0);
+    opacity: 0.95;
+  }
+  50% {
+    transform: translate(55px, -26px);
+    opacity: 0.4;
+  }
+  100% {
+    transform: translate(110px, 18px);
+    opacity: 0.1;
+  }
 }
 
 /* Event popups overlay */
@@ -404,10 +492,22 @@ function zoomOut() {
 }
 
 @keyframes popInOut {
-  0%   { opacity: 0; transform: translate(-50%, -10%) scale(0.9); }
-  14%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  78%  { opacity: 1; transform: translate(-50%, -68%) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -92%) scale(0.97); }
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -10%) scale(0.9);
+  }
+  14% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  78% {
+    opacity: 1;
+    transform: translate(-50%, -68%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -92%) scale(0.97);
+  }
 }
 
 /* Area detail */
