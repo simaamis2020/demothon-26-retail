@@ -1,0 +1,87 @@
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;700;800&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  --solace-green: #00C895;
+  --solace-bright: #ABFF88;
+  --solace-deep-blue: #093B5F;
+  --solace-dark-blue: #03213B;
+  --solace-dark-green: #009193;
+  --solace-sky: #C2F7FF;
+  --solace-spring: #C7FFCB;
+  --solace-yellow: #FFF7C2;
+  --gray-12: #F4F4F4;
+  --gray-13: #EAEAEA;
+  --gray-14: #D6D6D6;
+  --text: #FFFFFF;
+  --muted: #C2F7FF;
+  --glass: rgba(3, 33, 59, 0.7);
+  --border: rgba(0, 200, 149, 0.3);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #app {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: 'Figtree', sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(1000px 580px at 15% 8%, rgba(0, 145, 147, 0.33) 0%, transparent 55%),
+    radial-gradient(900px 540px at 88% 90%, rgba(9, 59, 95, 0.52) 0%, transparent 60%),
+    linear-gradient(150deg, var(--solace-deep-blue), var(--solace-dark-blue));
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* Glass utility */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 34px rgba(0, 0, 0, 0.34);
+}
+
+/* Shared button */
+button {
+  border: 1px solid rgba(0, 200, 149, 0.55);
+  color: var(--solace-dark-blue);
+  background: linear-gradient(140deg, var(--solace-bright), var(--solace-green));
+  font-family: 'Space Mono', monospace;
+  padding: 8px 11px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.69rem;
+  letter-spacing: 0.02em;
+}
+button:hover { filter: brightness(1.05); }
+
+/* Shared list reset */
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Tag badge */
+.tag {
+  display: inline-block;
+  margin-right: 8px;
+  font-size: 0.66rem;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(194, 247, 255, 0.45);
+  color: var(--muted);
+  font-family: 'Space Mono', monospace;
+}
+.tag.hot { color: var(--solace-yellow); border-color: rgba(255, 247, 194, 0.6); }
+.tag.fix { color: var(--solace-bright); border-color: rgba(171, 255, 136, 0.6); }
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0, 200, 149, 0.3); border-radius: 2px; }
