@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#cc0000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Demothon-26</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{--red:#cc0000;--dark-red:#aa0000;--green:#4caf50;--text:#1a1a1a;--muted:#888;--bg:#f5f5f5;--card:#fff;--border:#e8e8e8}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+  /* ── Screen management ── */
+  .screen{display:none;flex-direction:column;min-height:100vh}
+  .screen.active{display:flex}
+
+  /* ── Status bar spacer (iOS safe area) ── */
+  .safe-top{height:env(safe-area-inset-top,20px);background:var(--red)}
+
+  /* ── Header ── */
+  .header{background:var(--red);padding:12px 16px 14px;display:flex;align-items:center;gap:10px}
+  .header-back{color:#fff;font-size:20px;cursor:pointer;padding:0 4px;line-height:1}
+  .header-title{color:#fff;font-size:16px;font-weight:500;flex:1}
+  .header-badge{background:rgba(255,255,255,0.2);color:#fff;font-size:11px;padding:3px 8px;border-radius:12px}
+  .logo-header{font-size:20px;font-weight:300;color:#fff;letter-spacing:-0.5px}
+  .logo-header b{font-weight:700}
+
+  /* ── Body ── */
+  .body{flex:1;padding:16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+
+  /* ── Login screen ── */
+  .login-logo{text-align:center;padding:32px 0 8px;font-size:36px;font-weight:300;color:var(--red);letter-spacing:-1px}
+  .login-logo b{font-weight:700}
+  .login-sub{text-align:center;font-size:13px;color:var(--muted);margin-bottom:16px}
+  .form-group{display:flex;flex-direction:column;gap:6px}
+  .form-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px}
+  .form-input{border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;font-size:15px;color:var(--text);background:var(--card);outline:none;transition:border-color .15s;width:100%}
+  .form-input:focus{border-color:var(--red)}
+  .btn-primary{width:100%;background:var(--red);color:#fff;border:none;border-radius:10px;padding:14px;font-size:16px;font-weight:600;cursor:pointer;margin-top:4px;transition:background .15s}
+  .btn-primary:active{background:var(--dark-red)}
+  .btn-secondary{width:100%;background:var(--card);color:var(--red);border:1.5px solid var(--red);border-radius:10px;padding:12px;font-size:14px;font-weight:500;cursor:pointer}
+  .error-msg{background:#ffeaea;color:#c00;font-size:13px;padding:10px 14px;border-radius:8px;display:none}
+  .login-footer{text-align:center;font-size:12px;color:var(--muted);margin-top:8px}
+
+  /* ── Home screen ── */
+  .hero{background:var(--red);margin:-16px -16px 0;padding:20px 16px 18px}
+  .hero-name{color:#fff;font-size:18px;font-weight:500}
+  .hero-sub{color:rgba(255,255,255,0.75);font-size:12px;margin-top:2px}
+  .pts-row{display:flex;gap:10px;margin-top:12px}
+  .pts-card{flex:1;background:rgba(255,255,255,0.18);border-radius:10px;padding:10px 12px}
+  .pts-val{color:#fff;font-size:20px;font-weight:600}
+  .pts-lbl{color:rgba(255,255,255,0.7);font-size:10px;margin-top:2px}
+  .section-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px}
+  .scan-cta{background:var(--card);border:none;border-radius:14px;padding:16px;display:flex;align-items:center;gap:14px;cursor:pointer;width:100%;box-shadow:0 2px 8px rgba(0,0,0,0.08);text-align:left}
+  .scan-cta-icon{width:48px;height:48px;background:var(--red);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .scan-cta-icon svg{width:26px;height:26px}
+  .scan-cta-title{font-size:15px;font-weight:600;color:var(--text)}
+  .scan-cta-sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .recent-list{background:var(--card);border-radius:12px;overflow:hidden}
+  .recent-item{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)}
+  .recent-item:last-child{border-bottom:none}
+  .recent-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .dot-org{background:#4caf50}
+  .dot-conv{background:#ff9800}
+  .recent-name{font-size:13px;color:var(--text);flex:1}
+  .recent-pts{font-size:12px;color:var(--red);font-weight:500}
+  .logout-btn{background:transparent;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:8px 0;text-decoration:underline;align-self:center}
+
+  /* ── Scanner screen ── */
+  .scanner-bg{flex:1;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px}
+  #scanner-video{width:100%;max-width:320px;border-radius:12px;display:none}
+  .scan-frame-wrap{position:relative;width:240px;height:240px}
+  .scan-frame-wrap video{width:100%;height:100%;object-fit:cover;border-radius:8px}
+  .corner{position:absolute;width:28px;height:28px;border-color:#cc0000;border-style:solid}
+  .c-tl{top:0;left:0;border-width:3px 0 0 3px;border-radius:4px 0 0 0}
+  .c-tr{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
+  .c-bl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 4px}
+  .c-br{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
+  .scan-line{position:absolute;left:8px;right:8px;height:2px;background:var(--red);opacity:.9;animation:scanline 1.8s ease-in-out infinite}
+  @keyframes scanline{0%,100%{top:10%}50%{top:88%}}
+  .scan-hint{color:#aaa;font-size:13px;text-align:center;line-height:1.6}
+  .scan-cancel{color:var(--red);font-size:14px;font-weight:500;cursor:pointer;margin-top:4px}
+  .manual-plu{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px;text-align:center;cursor:pointer;width:200px}
+
+  /* ── Result screen ── */
+  .loading-state{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px}
+  .spinner{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--red);border-radius:50%;animation:spin 0.9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-text{font-size:14px;color:var(--muted)}
+  .result-content{display:flex;flex-direction:column;gap:12px}
+  .product-card{background:var(--card);border-radius:14px;padding:14px}
+  .product-name{font-size:16px;font-weight:600;color:var(--text);margin-bottom:2px}
+  .product-sub{font-size:11px;color:var(--muted);margin-bottom:10px}
+  .price-row{display:flex;align-items:center;gap:8px}
+  .price-orig{font-size:13px;color:#bbb;text-decoration:line-through}
+  .price-final{font-size:26px;font-weight:700;color:var(--red)}
+  .price-unit{font-size:13px;color:var(--muted);margin-left:2px}
+  .price-badge{background:var(--red);color:#fff;font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px}
+  .stock-row{display:flex;gap:8px;margin-top:10px}
+  .stock-pill{flex:1;background:var(--bg);border-radius:8px;padding:7px 6px;text-align:center}
+  .stock-val{font-size:12px;font-weight:600;color:var(--text)}
+  .stock-val.green{color:#2e7d32}
+  .stock-lbl{font-size:10px;color:var(--muted);margin-top:1px}
+  .ai-card{background:var(--card);border-radius:14px;padding:14px;border-left:4px solid var(--green)}
+  .ai-card.no-alt{border-left-color:var(--red)}
+  .ai-tag{font-size:10px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px}
+  .ai-card.no-alt .ai-tag{color:var(--red)}
+  .ai-text{font-size:14px;color:#333;line-height:1.6;margin-bottom:10px}
+  .alt-box{background:#f1f8f1;border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px}
+  .alt-info{flex:1}
+  .alt-name{font-size:14px;font-weight:600;color:var(--text)}
+  .alt-price{font-size:12px;color:var(--green);margin-top:2px}
+  .alt-btn{background:var(--green);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0}
+  .also-card{background:var(--card);border-radius:14px;padding:14px}
+  .also-items{display:flex;gap:10px;margin-top:10px}
+  .also-item{flex:1;background:var(--bg);border-radius:10px;padding:10px 8px;text-align:center}
+  .also-item-name{font-size:11px;font-weight:500;color:var(--text);margin-bottom:3px;line-height:1.3}
+  .also-item-price{font-size:12px;color:var(--red);font-weight:600}
+  .add-list-btn{background:var(--red);color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;margin-top:4px}
+  .scan-again-btn{background:var(--card);color:var(--red);border:1.5px solid var(--red);border-radius:12px;padding:12px;font-size:14px;font-weight:500;cursor:pointer}
+
+  /* ── Stage demo helper bar (only visible on desktop) ── */
+  .demo-bar{background:#1a1a1a;padding:8px 16px;display:flex;gap:8px;align-items:center}
+  .demo-bar-label{color:#666;font-size:11px;flex:1}
+  .demo-p-btn{padding:5px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#fff;font-size:11px;cursor:pointer}
+  .demo-p-btn.active{background:var(--red);border-color:var(--red)}
+  @media(min-width:600px){.demo-bar{display:flex}}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN 1: LOGIN
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-login" class="screen active">
+  <div class="safe-top"></div>
+  <div class="header"><span class="logo-header">demo<b>thon</b>-26</span></div>
+  <div class="body" style="justify-content:center">
+    <div class="login-logo">demo<b>thon</b>-26</div>
+    <div class="login-sub">Sign in to your Circle account</div>
+    <div style="height:1px;background:var(--border);margin:4px 0 16px"></div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" id="login-email" type="email" placeholder="you@email.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-input" id="login-password" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div class="error-msg" id="login-error">Invalid email or password</div>
+    <button class="btn-primary" onclick="doLogin()">Sign in</button>
+    <div class="login-footer">No account? Join Circle — it's free</div>
+    <!-- Demo shortcut bar -->
+    <div style="margin-top:24px;padding:12px;background:#f9f9f9;border-radius:10px;border:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;text-align:center">DEMO SHORTCUT — quick login</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-secondary" style="font-size:12px;padding:8px" onclick="quickLogin('anna@email.com')">Anna · Gold</button>
+        <button class="btn-secondary" style="font-size:12px;padding:8px" onclick="quickLogin('james@email.com')">James · Silver</button>
+        <button class="btn-secondary" style="font-size:12px;padding:8px" onclick="quickLogin('maya@email.com')">Maya · New</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN 2: HOME
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-home" class="screen">
+  <div class="safe-top"></div>
+  <div class="body" style="padding:0;gap:0">
+    <div class="hero">
+      <div class="hero-name" id="home-name">Welcome back</div>
+      <div class="hero-sub" id="home-sub">Circle member</div>
+      <div class="pts-row">
+        <div class="pts-card">
+          <div class="pts-val" id="home-points">0</div>
+          <div class="pts-lbl">Circle points</div>
+        </div>
+        <div class="pts-card">
+          <div class="pts-val" id="home-discount">0%</div>
+          <div class="pts-lbl">Your discount</div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+      <button class="scan-cta" onclick="goTo('screen-scanner')">
+        <div class="scan-cta-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round">
+            <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+            <line x1="7" y1="12" x2="17" y2="12"/>
+            <line x1="7" y1="9" x2="7" y2="15"/>
+            <line x1="17" y1="9" x2="17" y2="15"/>
+            <line x1="12" y1="9" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <div>
+          <div class="scan-cta-title">Scan produce</div>
+          <div class="scan-cta-sub">Get your price + personalised picks</div>
+        </div>
+      </button>
+      <div class="section-label">Recent purchases</div>
+      <div class="recent-list" id="recent-list">
+        <div class="recent-item"><div class="recent-dot dot-org"></div><div class="recent-name">Loading...</div></div>
+      </div>
+      <button class="logout-btn" onclick="logout()">Sign out</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN 3: SCANNER
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-scanner" class="screen">
+  <div class="safe-top"></div>
+  <div class="header">
+    <span class="header-back" onclick="goTo('screen-home')">‹</span>
+    <span class="header-title">Scan produce</span>
+  </div>
+  <div class="scanner-bg">
+    <div class="scan-frame-wrap" id="scanner-wrap">
+      <video id="scanner-video" autoplay playsinline muted></video>
+      <div class="corner c-tl"></div>
+      <div class="corner c-tr"></div>
+      <div class="corner c-bl"></div>
+      <div class="corner c-br"></div>
+      <div class="scan-line"></div>
+    </div>
+    <div class="scan-hint">Point camera at PLU sticker<br>or shelf barcode</div>
+    <!-- Manual PLU input for demo -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;width:100%;max-width:280px">
+      <div style="color:#555;font-size:11px">or enter PLU manually</div>
+      <input id="manual-plu" class="manual-plu" type="number" placeholder="e.g. 4011">
+      <button class="btn-primary" style="width:200px;font-size:14px;padding:10px" onclick="manualScan()">Look up</button>
+    </div>
+    <span class="scan-cancel" onclick="goTo('screen-home')">Cancel</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN 4: RESULT
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-result" class="screen">
+  <div class="safe-top"></div>
+  <div class="header">
+    <span class="header-back" onclick="goTo('screen-home')">‹</span>
+    <span class="header-title">Product details</span>
+    <span class="header-badge" id="result-tier">Gold</span>
+  </div>
+
+  <!-- Loading state -->
+  <div class="loading-state" id="result-loading">
+    <div class="spinner"></div>
+    <div class="loading-text">Getting your personalised info...</div>
+  </div>
+
+  <!-- Result content -->
+  <div class="body result-content" id="result-content" style="display:none">
+    <div class="product-card">
+      <div class="product-name" id="r-name">Bananas — Conventional</div>
+      <div class="product-sub" id="r-sub">Produce · PLU 4011</div>
+      <div class="price-row">
+        <span class="price-orig" id="r-orig"></span>
+        <span class="price-final" id="r-final"></span>
+        <span class="price-unit">/lb</span>
+        <span class="price-badge" id="r-badge"></span>
+      </div>
+      <div class="stock-row">
+        <div class="stock-pill">
+          <div class="stock-val green" id="r-stock">In stock</div>
+          <div class="stock-lbl">This store</div>
+        </div>
+        <div class="stock-pill">
+          <div class="stock-val green">Ships free</div>
+          <div class="stock-lbl">Online · 2 days</div>
+        </div>
+        <div class="stock-pill">
+          <div class="stock-val" id="r-pts">+6 pts</div>
+          <div class="stock-lbl">If you buy 1lb</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ai-card" id="ai-card">
+      <div class="ai-tag" id="ai-tag">Personalised for you</div>
+      <div class="ai-text" id="ai-text"></div>
+      <div class="alt-box" id="alt-box" style="display:none">
+        <div class="alt-info">
+          <div class="alt-name" id="alt-name">Organic Bananas</div>
+          <div class="alt-price" id="alt-price">$0.95/lb · PLU 94011</div>
+        </div>
+        <button class="alt-btn">Switch</button>
+      </div>
+    </div>
+
+    <div class="also-card">
+      <div class="section-label">You might also like</div>
+      <div class="also-items" id="also-items"></div>
+    </div>
+
+    <button class="add-list-btn">Add to list</button>
+    <button class="scan-again-btn" onclick="goTo('screen-scanner')">Scan another item</button>
+  </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let session = null; // { token, customer }
+let scannedPLU = null;
+let videoStream = null;
+let barcodeDetector = null;
+
+// ── Screen navigation ─────────────────────────────────────────────────────────
+function goTo(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+  if (screenId === 'screen-scanner') startScanner();
+  else stopScanner();
+}
+
+// ── Login ─────────────────────────────────────────────────────────────────────
+async function doLogin(emailOverride) {
+  const email = emailOverride || document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value || 'demo123';
+  document.getElementById('login-error').style.display = 'none';
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email, password})
+    });
+    if (!res.ok) { document.getElementById('login-error').style.display = 'block'; return; }
+    const data = await res.json();
+    session = data;
+    populateHome(data.customer);
+    goTo('screen-home');
+  } catch(e) {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+
+function quickLogin(email) {
+  document.getElementById('login-email').value = email;
+  doLogin(email);
+}
+
+function logout() {
+  session = null;
+  goTo('screen-login');
+}
+
+// ── Populate home screen ──────────────────────────────────────────────────────
+function populateHome(customer) {
+  const tierLabel = customer.loyalty_tier === 'New' ? 'Welcome to Circle' : `${customer.loyalty_tier} Circle member`;
+  document.getElementById('home-name').textContent = `Welcome back, ${customer.name}`;
+  document.getElementById('home-sub').textContent = tierLabel;
+  document.getElementById('home-points').textContent = customer.points.toLocaleString();
+  document.getElementById('home-discount').textContent = customer.discount_pct > 0 ? `${customer.discount_pct}%` : '—';
+
+  const list = document.getElementById('recent-list');
+  if (!customer.recent_purchases || customer.recent_purchases.length === 0) {
+    list.innerHTML = '<div class="recent-item"><div class="recent-name" style="color:var(--muted)">No purchases yet</div></div>';
+    return;
+  }
+  list.innerHTML = customer.recent_purchases.map(p => `
+    <div class="recent-item">
+      <div class="recent-dot ${p.organic ? 'dot-org' : 'dot-conv'}"></div>
+      <div class="recent-name">${p.product_name}</div>
+      <div class="recent-pts">${p.purchased_at}</div>
+    </div>
+  `).join('');
+}
+
+// ── Scanner ───────────────────────────────────────────────────────────────────
+async function startScanner() {
+  try {
+    const video = document.getElementById('scanner-video');
+    videoStream = await navigator.mediaDevices.getUserMedia({
+      video: {facingMode: 'environment', width: {ideal: 640}, height: {ideal: 480}}
+    });
+    video.srcObject = videoStream;
+    video.style.display = 'block';
+
+    if ('BarcodeDetector' in window) {
+      barcodeDetector = new BarcodeDetector({formats: ['ean_13', 'ean_8', 'itf', 'code_128', 'qr_code', 'upc_a', 'upc_e']});
+      detectLoop();
+    }
+  } catch(e) {
+    console.log('Camera not available:', e);
+  }
+}
+
+async function detectLoop() {
+  const video = document.getElementById('scanner-video');
+  if (!video.srcObject || !barcodeDetector) return;
+  try {
+    const codes = await barcodeDetector.detect(video);
+    if (codes.length > 0) {
+      const raw = codes[0].rawValue;
+      // PLU codes are 4-5 digits; UPC barcodes on produce often end in PLU
+      const plu = raw.replace(/^0+/, '').slice(-5).replace(/^0+/, '') || raw;
+      triggerScan(plu);
+      return;
+    }
+  } catch(e) {}
+  if (document.getElementById('screen-scanner').classList.contains('active')) {
+    requestAnimationFrame(detectLoop);
+  }
+}
+
+function stopScanner() {
+  if (videoStream) {
+    videoStream.getTracks().forEach(t => t.stop());
+    videoStream = null;
+  }
+  barcodeDetector = null;
+}
+
+function manualScan() {
+  const plu = document.getElementById('manual-plu').value.trim();
+  if (!plu) return;
+  triggerScan(plu);
+}
+
+// ── Scan → publish to Solace via backend ──────────────────────────────────────
+async function triggerScan(plu) {
+  if (!session) { goTo('screen-login'); return; }
+  scannedPLU = plu;
+  stopScanner();
+  goTo('screen-result');
+
+  document.getElementById('result-loading').style.display = 'flex';
+  document.getElementById('result-content').style.display = 'none';
+  document.getElementById('result-tier').textContent = session.customer.loyalty_tier;
+
+  // Publish scan event
+  await fetch('/api/scan', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({token: session.token, plu})
+  });
+
+  // Subscribe to result via SSE
+  listenForResult();
+}
+
+// ── SSE result listener ───────────────────────────────────────────────────────
+function listenForResult() {
+  const es = new EventSource(`/api/result/stream?token=${session.token}`);
+  es.onmessage = (e) => {
+    let raw = e.data.trim();
+    console.log("RAW SSE:", raw.slice(0, 200));
+    let data;
+    try {
+      data = JSON.parse(raw);
+      if (typeof data === "string") data = JSON.parse(data.trim());
+    } catch(err) {
+      console.error("JSON parse error:", err, "raw:", raw.slice(0, 100));
+      return;
+    }
+    if (data.status === 'waiting') return;
+    if (data.status === 'timeout') { showError(); es.close(); return; }
+    es.close();
+    renderResult(data);
+  };
+  es.onerror = () => { showError(); es.close(); };
+}
+
+// ── Render result card ────────────────────────────────────────────────────────
+function renderResult(data) {
+  document.getElementById('result-loading').style.display = 'none';
+  document.getElementById('result-content').style.display = 'flex';
+
+  const origPrice = 0.79; // base price from DB would come via sam_context
+  const discounted = data.final_price_per_lb || origPrice;
+  const hasDiscount = data.discount_applied && data.discount_pct > 0;
+
+  document.getElementById('r-name').textContent = 'Bananas — Conventional';
+  document.getElementById('r-sub').textContent = `Produce · PLU ${scannedPLU} · Aisle A2`;
+  document.getElementById('r-orig').textContent = hasDiscount ? `$${origPrice.toFixed(2)}` : '';
+  document.getElementById('r-final').textContent = `$${discounted.toFixed(2)}`;
+  document.getElementById('r-badge').textContent = hasDiscount
+    ? `${data.loyalty_tier} ${data.discount_pct}% off`
+    : data.loyalty_tier === 'New' ? 'Join Circle for deals' : 'Member price';
+  document.getElementById('r-pts').textContent = `+${data.points_if_purchased || 0} pts`;
+
+  // AI personalisation
+  const aiCard = document.getElementById('ai-card');
+  const hasAlt = data.show_organic_alternative && data.organic_alternative;
+  aiCard.className = `ai-card${hasAlt ? '' : ' no-alt'}`;
+  document.getElementById('ai-tag').textContent = hasAlt ? 'Personalised for you' : 'Fresh tip';
+  document.getElementById('ai-tag').style.color = hasAlt ? 'var(--green)' : 'var(--red)';
+  document.getElementById('ai-text').textContent = data.personalised_text || '';
+
+  const altBox = document.getElementById('alt-box');
+  if (hasAlt) {
+    altBox.style.display = 'flex';
+    document.getElementById('alt-name').textContent = data.organic_alternative.name || 'Organic Bananas';
+    document.getElementById('alt-price').textContent =
+      `$${Number(data.organic_alternative.price_per_lb || 0.95).toFixed(2)}/lb · PLU ${data.organic_alternative.plu || '94011'}`;
+  } else {
+    altBox.style.display = 'none';
+  }
+
+  // Also like
+  const alsoEl = document.getElementById('also-items');
+  if (data.also_like && data.also_like.length > 0) {
+    alsoEl.innerHTML = data.also_like.map(item => `
+      <div class="also-item">
+        <div class="also-item-name">${item.name}</div>
+        <div class="also-item-price">$${Number(item.price || 0).toFixed(2)}</div>
+      </div>
+    `).join('');
+  } else {
+    alsoEl.innerHTML = '<div style="color:var(--muted);font-size:12px">No suggestions available</div>';
+  }
+}
+
+function showError() {
+  document.getElementById('result-loading').style.display = 'none';
+  document.getElementById('result-content').style.display = 'flex';
+  document.getElementById('ai-text').textContent = 'Could not load personalisation. Please try again.';
+}
+
+// ── Enter key on login ────────────────────────────────────────────────────────
+document.getElementById('login-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+</script>
+</body>
+</html>

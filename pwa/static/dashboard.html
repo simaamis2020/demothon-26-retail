@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demothon-26 — Stage Dashboard</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;display:flex;flex-direction:column}
+  .top-bar{background:#1a1a1a;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2a2a}
+  .top-logo{font-size:22px;font-weight:300;color:#fff;letter-spacing:-0.5px}
+  .top-logo b{font-weight:700;color:#cc0000}
+  .top-status{display:flex;align-items:center;gap:8px;font-size:13px;color:#666}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:#333;transition:background .3s}
+  .status-dot.live{background:#4caf50;animation:pulse 2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  .main{flex:1;display:flex;align-items:center;justify-content:center;padding:40px}
+  .waiting{text-align:center;display:flex;flex-direction:column;align-items:center;gap:20px}
+  .waiting-ring{width:80px;height:80px;border:3px solid #222;border-top-color:#cc0000;border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .waiting-text{font-size:20px;color:#444}
+  .waiting-sub{font-size:14px;color:#333}
+  .result-card{background:#111;border-radius:24px;padding:48px;max-width:800px;width:100%;opacity:0;transform:translateY(16px);transition:opacity .5s,transform .5s}
+  .result-card.visible{opacity:1;transform:translateY(0)}
+  .card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px}
+  .customer-info{}
+  .customer-event{font-size:12px;color:#555;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
+  .customer-name{font-size:40px;font-weight:600;color:#fff;margin-bottom:4px}
+  .customer-tier{font-size:16px;color:#888}
+  .price-block{text-align:right}
+  .price-label{font-size:12px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+  .price-final{font-size:48px;font-weight:700;color:#cc0000;line-height:1}
+  .price-unit{font-size:18px;color:#666;margin-top:4px}
+  .price-badge{background:#cc0000;color:#fff;font-size:13px;font-weight:600;padding:5px 12px;border-radius:8px;display:inline-block;margin-top:8px}
+  .divider{height:1px;background:#222;margin:0 0 32px}
+  .ai-section{margin-bottom:32px}
+  .ai-label{font-size:12px;font-weight:600;color:#4caf50;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px}
+  .ai-label.no-alt{color:#cc0000}
+  .ai-text{font-size:22px;color:#ccc;line-height:1.6;margin-bottom:20px}
+  .alt-row{background:#0d1f0d;border:1px solid #1a3d1a;border-radius:14px;padding:20px 24px;display:flex;align-items:center;gap:20px}
+  .alt-name{font-size:20px;font-weight:600;color:#4caf50}
+  .alt-price{font-size:14px;color:#3d8f3d;margin-top:4px}
+  .alt-badge{background:#4caf50;color:#fff;font-size:14px;font-weight:600;padding:8px 18px;border-radius:8px;margin-left:auto;flex-shrink:0}
+  .also-section{}
+  .also-label{font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px}
+  .also-items{display:flex;gap:14px}
+  .also-item{flex:1;background:#161616;border:1px solid #222;border-radius:12px;padding:16px;text-align:center}
+  .also-item-name{font-size:15px;font-weight:500;color:#ccc;margin-bottom:6px}
+  .also-item-price{font-size:18px;font-weight:600;color:#cc0000}
+  .bottom-bar{background:#111;padding:12px 32px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #1a1a1a}
+  .bb-event{font-size:12px;color:#444}
+  .bb-tech{font-size:12px;color:#333;display:flex;align-items:center;gap:16px}
+  .tech-tag{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;padding:3px 10px;font-size:11px;color:#555}
+  .tech-tag.sam{border-color:#1D9E75;color:#1D9E75}
+  .tech-tag.lc{border-color:#534AB7;color:#7F77DD}
+  .product-name-dash{font-size:14px;color:#555;margin-bottom:4px}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="top-logo">demo<b>thon</b>-26 <span style="font-size:14px;color:#555;font-weight:400;margin-left:8px">Stage Dashboard</span></div>
+  <div class="top-status">
+    <div class="status-dot live" id="status-dot"></div>
+    <span id="status-text">Waiting for scan...</span>
+  </div>
+</div>
+
+<div class="main">
+  <div class="waiting" id="waiting-state">
+    <div class="waiting-ring"></div>
+    <div class="waiting-text">Waiting for customer scan</div>
+    <div class="waiting-sub">When a customer scans produce in-store, the personalised result appears here instantly via Solace event mesh</div>
+  </div>
+
+  <div class="result-card" id="result-card">
+    <div class="card-top">
+      <div class="customer-info">
+        <div class="customer-event">Customer scanned</div>
+        <div class="product-name-dash" id="d-product">Bananas — Conventional · PLU 4011</div>
+        <div class="customer-name" id="d-name">Anna</div>
+        <div class="customer-tier" id="d-tier">Gold Circle · 18% discount applied</div>
+      </div>
+      <div class="price-block">
+        <div class="price-label">Your price</div>
+        <div class="price-final" id="d-price">$0.65</div>
+        <div class="price-unit">/lb</div>
+        <div class="price-badge" id="d-badge">Gold 18% off</div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="ai-section">
+      <div class="ai-label" id="d-ai-label">Personalised recommendation</div>
+      <div class="ai-text" id="d-ai-text"></div>
+      <div class="alt-row" id="d-alt-row" style="display:none">
+        <div>
+          <div class="alt-name" id="d-alt-name">Organic Bananas</div>
+          <div class="alt-price" id="d-alt-price">$0.95/lb · PLU 94011 · Aisle A2</div>
+        </div>
+        <div class="alt-badge">Switch to organic</div>
+      </div>
+    </div>
+    <div class="also-section">
+      <div class="also-label">You might also like</div>
+      <div class="also-items" id="d-also"></div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <div class="bb-event" id="bb-event">No events yet</div>
+  <div class="bb-tech">
+    <span class="tech-tag sam">SAM — real-time orchestration</span>
+    <span class="tech-tag lc">LangChain — personalisation reasoning</span>
+    <span class="tech-tag">Solace event mesh</span>
+  </div>
+</div>
+
+<script>
+// Poll the PWA backend for results via SSE
+// The backend subscribes to store/result/> and relays via /api/dashboard/stream
+const es = new EventSource('/api/dashboard/stream');
+
+es.onopen = () => {
+  document.getElementById('status-dot').classList.add('live');
+  document.getElementById('status-text').textContent = 'Connected — waiting for scan';
+};
+
+es.onmessage = (e) => {
+  const data = JSON.parse(e.data);
+  if (data.status === 'waiting' || data.status === 'keepalive') return;
+  renderDashboard(data);
+};
+
+es.onerror = () => {
+  document.getElementById('status-dot').classList.remove('live');
+  document.getElementById('status-text').textContent = 'Reconnecting...';
+};
+
+function renderDashboard(data) {
+  document.getElementById('waiting-state').style.display = 'none';
+  const card = document.getElementById('result-card');
+  card.classList.remove('visible');
+  setTimeout(() => card.classList.add('visible'), 50);
+
+  document.getElementById('status-text').textContent = `Last event: ${new Date().toLocaleTimeString()}`;
+  document.getElementById('bb-event').textContent =
+    `store/result/${data.customer_id || ''} → received at ${new Date().toLocaleTimeString()}`;
+
+  document.getElementById('d-name').textContent = data.customer_name || 'Customer';
+  document.getElementById('d-tier').textContent =
+    `${data.loyalty_tier || ''} Circle · ${data.discount_pct > 0 ? data.discount_pct + '% discount applied' : 'Standard pricing'}`;
+  document.getElementById('d-price').textContent = `$${Number(data.final_price_per_lb || 0.79).toFixed(2)}`;
+  document.getElementById('d-badge').textContent =
+    data.discount_pct > 0 ? `${data.loyalty_tier} ${data.discount_pct}% off` : 'Standard price';
+
+  const hasAlt = data.show_organic_alternative && data.organic_alternative;
+  const aiLabel = document.getElementById('d-ai-label');
+  aiLabel.textContent = hasAlt ? 'Personalised recommendation' : 'Freshness tip';
+  aiLabel.className = `ai-label${hasAlt ? '' : ' no-alt'}`;
+  document.getElementById('d-ai-text').textContent = data.personalised_text || '';
+
+  const altRow = document.getElementById('d-alt-row');
+  if (hasAlt) {
+    altRow.style.display = 'flex';
+    document.getElementById('d-alt-name').textContent = data.organic_alternative.name || 'Organic alternative';
+    document.getElementById('d-alt-price').textContent =
+      `$${Number(data.organic_alternative.price_per_lb || 0).toFixed(2)}/lb · PLU ${data.organic_alternative.plu || ''}`;
+  } else {
+    altRow.style.display = 'none';
+  }
+
+  const alsoEl = document.getElementById('d-also');
+  if (data.also_like && data.also_like.length > 0) {
+    alsoEl.innerHTML = data.also_like.map(item => `
+      <div class="also-item">
+        <div class="also-item-name">${item.name}</div>
+        <div class="also-item-price">$${Number(item.price || 0).toFixed(2)}</div>
+      </div>
+    `).join('');
+  }
+}
+</script>
+</body>
+</html>

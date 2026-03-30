@@ -1,0 +1,98 @@
+log:
+  stdout_log_level: DEBUG
+  log_file_level: DEBUG
+  log_file: "demothon26_produce.log"
+
+apps:
+  - name: "demothon26_produce_scan_agent"
+    app_base_path: "."
+    app_module: "solace_agent_mesh.agent.sac.app"
+    broker:
+      dev_mode: ${SOLACE_DEV_MODE, false}
+      broker_url: ${SOLACE_BROKER_URL, ws://localhost:8080}
+      broker_username: ${SOLACE_BROKER_USERNAME, default}
+      broker_password: ${SOLACE_BROKER_PASSWORD, default}
+      broker_vpn: ${SOLACE_BROKER_VPN, default}
+      temporary_queue: ${USE_TEMPORARY_QUEUES, true}
+    app_config:
+      namespace: "${NAMESPACE}"
+      supports_streaming: false
+      agent_name: "demothon26_produce_scan_agent"
+      display_name: "Demothon-26 Produce Scan Agent"
+      deployment:
+        id: "demothon26-produce-scan-001"
+      instruction: |
+        You are the Demothon-26 produce scan agent for a retail grocery store.
+
+        When you receive a message containing a customer_id and plu (product PLU code):
+
+        STEP 1 - Use the SQL tool to query customer profile:
+          SELECT name, loyalty_tier, points, discount_pct
+          FROM customers WHERE customer_id = '<customer_id>'
+
+        STEP 2 - Use the SQL tool to query product details:
+          SELECT name, price_per_lb, organic, stock_store, aisle
+          FROM products WHERE plu = '<plu>'
+
+        STEP 3 - Use the SQL tool to query purchase history:
+          SELECT product_name, organic, purchased_at
+          FROM purchase_history
+          WHERE customer_id = '<customer_id>'
+          ORDER BY purchased_at DESC LIMIT 12
+
+        STEP 4 - Build a sam_context string from your findings e.g.:
+          "Customer: Anna, Gold, 18% discount. Product: Bananas $0.79/lb, 48 in stock, Aisle A2. History: 10 organic purchases."
+
+        STEP 5 - Call the MCP tool personalise_product_scan with:
+          - customer_id: the customer ID
+          - plu: the scanned PLU code
+          - sam_context: the context string you built in STEP 4
+
+        STEP 6 - Return the JSON response from personalise_product_scan as your final answer.
+      model:
+        model: "${LLM_SERVICE_GENERAL_MODEL_NAME}"
+        api_base: "${LLM_SERVICE_ENDPOINT}"
+        api_key: "${LLM_SERVICE_API_KEY}"
+      tools:
+        - tool_type: builtin-group
+          group_name: "data_analysis"
+        - tool_type: mcp
+          name: "langchain_mcp"
+          description: "LangChain personalisation agent - produce scan recommendations"
+          connection_params:
+            type: sse
+            url: "http://host.minikube.internal:8767/sse"
+        - tool_type: python
+          component_module: "sam_sql_database_tool.tools"
+          component_base_path: "."
+          class_name: "SqlDatabaseTool"
+          tool_config:
+            tool_name: "demothon26_sql_query"
+            tool_description: "Query the demo MySQL database for customers, products and purchase history."
+            connection_string: "mysql+pymysql://admin:admin@host.minikube.internal:3306/demo"
+      session_service:
+        type: ${PERSISTENCE_TYPE, sql}
+        database_url: ${DATABASE_URL, sqlite:///demothon26_produce.db}
+        default_behavior: PERSISTENT
+      artifact_service:
+        type: filesystem
+        base_path: /tmp/samv2
+        artifact_scope: namespace
+      artifact_handling_mode: reference
+      enable_embed_resolution: true
+      enable_artifact_content_instruction: true
+      agent_card:
+        description: "Handles real-time produce scan events, fetches customer and product data, and delegates personalisation to LangChainPersonalisationAgent via A2A."
+        defaultInputModes: ["text"]
+        defaultOutputModes: ["text"]
+        skills:
+          - id: "produce_scan"
+            name: "Produce Scan"
+            description: "Process in-store produce scan events and return personalised results."
+      agent_card_publishing:
+        interval_seconds: 10
+      agent_discovery:
+        enabled: true
+      inter_agent_communication:
+        allow_list: ["*"]
+        request_timeout_seconds: 60
