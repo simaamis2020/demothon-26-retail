@@ -10,6 +10,8 @@ both the phone and the stage dashboard via the Solace event mesh.
 ---
 
 ## Architecture
+<img width="1200" height="675" alt="image" src="https://github.com/user-attachments/assets/3dfb8310-4262-42bc-860d-b626fc6c238f" />
+
 
 ```
 PWA (phone browser)
