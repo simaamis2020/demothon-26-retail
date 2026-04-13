@@ -82,9 +82,14 @@ class ResultHandler(MessageHandler):
                     payload = parsed
             except Exception:
                 pass
-            payload = re.sub(r'^```json\s*', '', payload.strip())
-            payload = re.sub(r'^```\s*', '', payload.strip())
-            payload = re.sub(r'\s*```$', '', payload.strip())
+            # Extract JSON from anywhere in the string (handles LangGraph prose wrapper)
+            m = re.search(r'```json\s*(.*?)\s*```', payload, re.DOTALL)
+            if m:
+                payload = m.group(1).strip()
+            else:
+                payload = re.sub(r'^```json\s*', '', payload.strip())
+                payload = re.sub(r'^```\s*', '', payload.strip())
+                payload = re.sub(r'\s*```$', '', payload.strip())
             print(f"CLEANED PAYLOAD: {payload[:100]}")
             if customer_id in result_queues:
                 # Ensure single-line JSON for SSE
@@ -179,7 +184,8 @@ async def scan(request: Request):
 
     # Publish scan event to Solace
     payload = json.dumps({"customer_id": customer_id, "plu": plu})
-    topic = f"store/scan/{customer_id}/{plu}"
+    use_langgraph = body.get("use_langgraph", False)
+    topic = f"store/langgraph/{customer_id}/{plu}" if use_langgraph else f"store/scan/{customer_id}/{plu}"
     msg = messaging_service.message_builder().build(payload)
     publisher.publish(msg, Topic.of(topic))
 
@@ -229,9 +235,14 @@ async def dashboard_stream(request: Request):
                     payload = parsed
             except Exception:
                 pass
-            payload = re.sub(r'^```json\s*', '', payload.strip())
-            payload = re.sub(r'^```\s*', '', payload.strip())
-            payload = re.sub(r'\s*```$', '', payload.strip())
+            # Extract JSON from anywhere in the string (handles LangGraph prose wrapper)
+            m = re.search(r'```json\s*(.*?)\s*```', payload, re.DOTALL)
+            if m:
+                payload = m.group(1).strip()
+            else:
+                payload = re.sub(r'^```json\s*', '', payload.strip())
+                payload = re.sub(r'^```\s*', '', payload.strip())
+                payload = re.sub(r'\s*```$', '', payload.strip())
             try:
                 payload = json.dumps(json.loads(payload.strip()))
             except Exception:

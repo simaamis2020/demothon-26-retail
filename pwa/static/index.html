@@ -85,11 +85,19 @@
   .scan-cancel{color:var(--red);font-size:14px;font-weight:500;cursor:pointer;margin-top:4px}
   .manual-plu{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px;text-align:center;cursor:pointer;width:200px}
 
+  /* ── Mode toggle ── */
+  .mode-toggle{display:flex;align-items:center;gap:0;background:rgba(255,255,255,0.1);border-radius:20px;padding:3px;border:1px solid rgba(255,255,255,0.15)}
+  .mode-btn{padding:6px 16px;border-radius:16px;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;background:transparent;color:rgba(255,255,255,0.5);letter-spacing:0.3px}
+  .mode-btn.active-mcp{background:var(--red);color:#fff}
+  .mode-btn.active-lg{background:#00b86b;color:#fff}
+  .mode-label{color:rgba(255,255,255,0.4);font-size:10px;text-align:center;margin-top:2px;letter-spacing:0.5px}
+
   /* ── Result screen ── */
   .loading-state{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px}
   .spinner{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--red);border-radius:50%;animation:spin 0.9s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   .loading-text{font-size:14px;color:var(--muted)}
+  .loading-mode{font-size:11px;color:var(--muted);margin-top:4px}
   .result-content{display:flex;flex-direction:column;gap:12px}
   .product-card{background:var(--card);border-radius:14px;padding:14px}
   .product-name{font-size:16px;font-weight:600;color:var(--text);margin-bottom:2px}
@@ -122,12 +130,10 @@
   .add-list-btn{background:var(--red);color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;margin-top:4px}
   .scan-again-btn{background:var(--card);color:var(--red);border:1.5px solid var(--red);border-radius:12px;padding:12px;font-size:14px;font-weight:500;cursor:pointer}
 
-  /* ── Stage demo helper bar (only visible on desktop) ── */
-  .demo-bar{background:#1a1a1a;padding:8px 16px;display:flex;gap:8px;align-items:center}
-  .demo-bar-label{color:#666;font-size:11px;flex:1}
-  .demo-p-btn{padding:5px 12px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#fff;font-size:11px;cursor:pointer}
-  .demo-p-btn.active{background:var(--red);border-color:var(--red)}
-  @media(min-width:600px){.demo-bar{display:flex}}
+  /* ── Mode badge on result screen ── */
+  .mode-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:3px 8px;border-radius:10px;margin-bottom:8px}
+  .mode-badge.mcp{background:#ffeaea;color:#cc0000}
+  .mode-badge.lg{background:#e8f8f0;color:#00875a}
 </style>
 </head>
 <body>
@@ -153,7 +159,6 @@
     <div class="error-msg" id="login-error">Invalid email or password</div>
     <button class="btn-primary" onclick="doLogin()">Sign in</button>
     <div class="login-footer">No account? Join Circle — it's free</div>
-    <!-- Demo shortcut bar -->
     <div style="margin-top:24px;padding:12px;background:#f9f9f9;border-radius:10px;border:1px solid var(--border)">
       <div style="font-size:11px;color:var(--muted);margin-bottom:8px;text-align:center">DEMO SHORTCUT — quick login</div>
       <div style="display:flex;gap:6px">
@@ -203,7 +208,7 @@
       </button>
       <div class="section-label">Recent purchases</div>
       <div class="recent-list" id="recent-list">
-        <div class="recent-item"><div class="recent-dot dot-org"></div><div class="recent-name">Loading...</div></div>
+        <div class="recent-item"><div class="recent-name" style="color:var(--muted)">Loading...</div></div>
       </div>
       <button class="logout-btn" onclick="logout()">Sign out</button>
     </div>
@@ -229,7 +234,17 @@
       <div class="scan-line"></div>
     </div>
     <div class="scan-hint">Point camera at PLU sticker<br>or shelf barcode</div>
-    <!-- Manual PLU input for demo -->
+
+    <!-- ── Agent mode toggle ── -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+      <div class="mode-toggle">
+        <button class="mode-btn active-mcp" id="btn-mcp" onclick="setMode(false)">MCP</button>
+        <button class="mode-btn" id="btn-lg" onclick="setMode(true)">LangGraph</button>
+      </div>
+      <div class="mode-label" id="mode-label">LangChain via MCP bridge</div>
+    </div>
+
+    <!-- Manual PLU input -->
     <div style="display:flex;flex-direction:column;align-items:center;gap:8px;width:100%;max-width:280px">
       <div style="color:#555;font-size:11px">or enter PLU manually</div>
       <input id="manual-plu" class="manual-plu" type="number" placeholder="e.g. 4011">
@@ -254,10 +269,12 @@
   <div class="loading-state" id="result-loading">
     <div class="spinner"></div>
     <div class="loading-text">Getting your personalised info...</div>
+    <div class="loading-mode" id="loading-mode"></div>
   </div>
 
   <!-- Result content -->
   <div class="body result-content" id="result-content" style="display:none">
+    <div class="mode-badge mcp" id="result-mode-badge">MCP bridge</div>
     <div class="product-card">
       <div class="product-name" id="r-name">Bananas — Conventional</div>
       <div class="product-sub" id="r-sub">Produce · PLU 4011</div>
@@ -307,10 +324,21 @@
 
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
-let session = null; // { token, customer }
+let session = null;
 let scannedPLU = null;
 let videoStream = null;
 let barcodeDetector = null;
+let useLangGraph = false;
+
+// ── Mode toggle ───────────────────────────────────────────────────────────────
+function setMode(lg) {
+  useLangGraph = lg;
+  document.getElementById('btn-mcp').className = lg ? 'mode-btn' : 'mode-btn active-mcp';
+  document.getElementById('btn-lg').className = lg ? 'mode-btn active-lg' : 'mode-btn';
+  document.getElementById('mode-label').textContent = lg
+    ? 'LangGraph native A2A server'
+    : 'LangChain via MCP bridge';
+}
 
 // ── Screen navigation ─────────────────────────────────────────────────────────
 function goTo(screenId) {
@@ -399,7 +427,6 @@ async function detectLoop() {
     const codes = await barcodeDetector.detect(video);
     if (codes.length > 0) {
       const raw = codes[0].rawValue;
-      // PLU codes are 4-5 digits; UPC barcodes on produce often end in PLU
       const plu = raw.replace(/^0+/, '').slice(-5).replace(/^0+/, '') || raw;
       triggerScan(plu);
       return;
@@ -434,15 +461,16 @@ async function triggerScan(plu) {
   document.getElementById('result-loading').style.display = 'flex';
   document.getElementById('result-content').style.display = 'none';
   document.getElementById('result-tier').textContent = session.customer.loyalty_tier;
+  document.getElementById('loading-mode').textContent = useLangGraph
+    ? 'via LangGraph A2A server'
+    : 'via LangChain MCP bridge';
 
-  // Publish scan event
   await fetch('/api/scan', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({token: session.token, plu})
+    body: JSON.stringify({token: session.token, plu, use_langgraph: useLangGraph})
   });
 
-  // Subscribe to result via SSE
   listenForResult();
 }
 
@@ -451,13 +479,12 @@ function listenForResult() {
   const es = new EventSource(`/api/result/stream?token=${session.token}`);
   es.onmessage = (e) => {
     let raw = e.data.trim();
-    console.log("RAW SSE:", raw.slice(0, 200));
     let data;
     try {
       data = JSON.parse(raw);
       if (typeof data === "string") data = JSON.parse(data.trim());
     } catch(err) {
-      console.error("JSON parse error:", err, "raw:", raw.slice(0, 100));
+      console.error("JSON parse error:", err);
       return;
     }
     if (data.status === 'waiting') return;
@@ -473,7 +500,17 @@ function renderResult(data) {
   document.getElementById('result-loading').style.display = 'none';
   document.getElementById('result-content').style.display = 'flex';
 
-  const origPrice = 0.79; // base price from DB would come via sam_context
+  // Mode badge
+  const badge = document.getElementById('result-mode-badge');
+  if (useLangGraph) {
+    badge.textContent = 'LangGraph A2A';
+    badge.className = 'mode-badge lg';
+  } else {
+    badge.textContent = 'MCP bridge';
+    badge.className = 'mode-badge mcp';
+  }
+
+  const origPrice = 0.79;
   const discounted = data.final_price_per_lb || origPrice;
   const hasDiscount = data.discount_applied && data.discount_pct > 0;
 
@@ -486,7 +523,6 @@ function renderResult(data) {
     : data.loyalty_tier === 'New' ? 'Join Circle for deals' : 'Member price';
   document.getElementById('r-pts').textContent = `+${data.points_if_purchased || 0} pts`;
 
-  // AI personalisation
   const aiCard = document.getElementById('ai-card');
   const hasAlt = data.show_organic_alternative && data.organic_alternative;
   aiCard.className = `ai-card${hasAlt ? '' : ' no-alt'}`;
@@ -504,7 +540,6 @@ function renderResult(data) {
     altBox.style.display = 'none';
   }
 
-  // Also like
   const alsoEl = document.getElementById('also-items');
   if (data.also_like && data.also_like.length > 0) {
     alsoEl.innerHTML = data.also_like.map(item => `
@@ -524,7 +559,6 @@ function showError() {
   document.getElementById('ai-text').textContent = 'Could not load personalisation. Please try again.';
 }
 
-// ── Enter key on login ────────────────────────────────────────────────────────
 document.getElementById('login-password').addEventListener('keydown', e => {
   if (e.key === 'Enter') doLogin();
 });

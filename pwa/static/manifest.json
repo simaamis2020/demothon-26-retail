@@ -1,0 +1,16 @@
+{
+  "name": "Demothon-26",
+  "short_name": "D26",
+  "description": "Smart produce scanner powered by SAM + LangChain",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#cc0000",
+  "theme_color": "#cc0000",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
