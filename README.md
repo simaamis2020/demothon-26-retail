@@ -10,22 +10,24 @@ appears on both the phone and the stage dashboard via the Solace event mesh.
 ---
 
 ## Architecture
+<img width="1200" height="675" alt="image" src="https://github.com/user-attachments/assets/3dfb8310-4262-42bc-860d-b626fc6c238f" />
+
 
 ```
 PWA (phone browser)
   └─ scans banana PLU 4011
   └─ POST /api/scan → PWA backend
-       └─ publishes store/scan/C001/4011 → Solace broker
+       └─ publishes store/langgraph/C001/4011 → Solace broker
             └─ SAM Event Mesh Gateway picks up instantly
-                 └─ SAM produce-scan-agent:
+                 └─ SAM Produce Scan Agent:
                       ├─ fetches customer profile from MySQL
                       ├─ fetches product details from MySQL
-                      └─ calls LangChain via MCP → personalise_product_scan
-                           └─ LangChain ReAct agent:
-                                ├─ get_purchase_history(C001)
-                                ├─ get_product_details(4011)
-                                ├─ get_organic_alternative(4011)
-                                └─ returns structured JSON
+                      ├─ fetches purchase history from MySQL
+                      └─ builds sam_context string from findings
+                           └─ delegates to LangGraph Personalisation Agent via A2A Proxy:
+                                └─ LangGraph ReAct graph:
+                                     └─ reasons over customer context
+                                     └─ returns personalised JSON recommendation
                  └─ publishes store/result/C001 → Solace broker
                       ├─ PWA backend SSE relay → phone screen updates
                       └─ Stage dashboard SSE relay → big screen updates
