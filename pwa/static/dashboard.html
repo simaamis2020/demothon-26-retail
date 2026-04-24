@@ -14,12 +14,18 @@
   .status-dot{width:8px;height:8px;border-radius:50%;background:#333;transition:background .3s}
   .status-dot.live{background:#4caf50;animation:pulse 2s ease-in-out infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-  .main{flex:1;display:flex;align-items:center;justify-content:center;padding:40px}
+  .main{flex:1;display:flex;flex-direction:column;padding:40px;gap:20px}
+  .dashboard-content{display:flex;gap:20px;flex:1}
+  .scan-section{flex:2;display:flex;align-items:center;justify-content:center}
+  .alerts-section{flex:1;display:flex;flex-direction:column;gap:16px}
   .waiting{text-align:center;display:flex;flex-direction:column;align-items:center;gap:20px}
   .waiting-ring{width:80px;height:80px;border:3px solid #222;border-top-color:#cc0000;border-radius:50%;animation:spin 1s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   .waiting-text{font-size:20px;color:#444}
   .waiting-sub{font-size:14px;color:#333}
+  .loading-historical{text-align:center;display:flex;flex-direction:column;align-items:center;gap:20px}
+  .loading-text{font-size:20px;color:#4caf50}
+  .loading-sub{font-size:14px;color:#666}
   .result-card{background:#111;border-radius:24px;padding:48px;max-width:800px;width:100%;opacity:0;transform:translateY(16px);transition:opacity .5s,transform .5s}
   .result-card.visible{opacity:1;transform:translateY(0)}
   .card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px}
@@ -54,6 +60,104 @@
   .tech-tag.sam{border-color:#1D9E75;color:#1D9E75}
   .tech-tag.lc{border-color:#534AB7;color:#7F77DD}
   .product-name-dash{font-size:14px;color:#555;margin-bottom:4px}
+
+  /* ALERT PANEL STYLES */
+  .alert-panel{
+    background:#111;
+    border:1px solid #222;
+    border-radius:16px;
+    padding:20px;
+    min-height:200px;
+  }
+  .alert-panel h3{
+    font-size:16px;
+    margin:0 0 16px 0;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    color:#fff;
+    font-weight:600;
+  }
+  .alert-count{
+    background:#cc0000;
+    color:#fff;
+    border-radius:12px;
+    padding:2px 8px;
+    font-size:12px;
+    margin-left:auto;
+  }
+  .low-stock-alert{
+    background:rgba(204, 0, 0, 0.1);
+    border:1px solid rgba(204, 0, 0, 0.3);
+    border-radius:8px;
+    padding:12px;
+    margin:8px 0;
+    animation:alertPulse 2s infinite;
+  }
+  @keyframes alertPulse{
+    0%,100%{opacity:1}
+    50%{opacity:0.8}
+  }
+  .trend-metric{
+    display:flex;
+    justify-content:space-between;
+    padding:8px 0;
+    border-bottom:1px solid #222;
+    font-size:14px;
+  }
+  .trend-metric:last-child{
+    border-bottom:none;
+  }
+  .metric-value{
+    font-weight:bold;
+    color:#4caf50;
+  }
+  .no-alerts{
+    text-align:center;
+    opacity:0.5;
+    padding:20px;
+    font-size:14px;
+    color:#666;
+  }
+  .scan-item{
+    background:rgba(255,255,255,0.05);
+    border:1px solid #333;
+    border-radius:8px;
+    padding:12px;
+    margin:8px 0;
+    font-size:13px;
+  }
+  .scan-customer{
+    font-weight:600;
+    color:#4caf50;
+    margin-bottom:4px;
+  }
+  .scan-product{
+    color:#ccc;
+    margin-bottom:4px;
+  }
+  .scan-organic{
+    display:inline-block;
+    background:#1a3d1a;
+    color:#4caf50;
+    padding:2px 8px;
+    border-radius:4px;
+    font-size:11px;
+    margin-right:8px;
+  }
+  .scan-conventional{
+    display:inline-block;
+    background:#3d1a1a;
+    color:#cc6666;
+    padding:2px 8px;
+    border-radius:4px;
+    font-size:11px;
+    margin-right:8px;
+  }
+  .scan-time{
+    opacity:0.7;
+    font-size:11px;
+  }
 </style>
 </head>
 <body>
@@ -61,54 +165,111 @@
 <div class="top-bar">
   <div class="top-logo">demo<b>thon</b>-26 <span style="font-size:14px;color:#555;font-weight:400;margin-left:8px">Stage Dashboard</span></div>
   <div class="top-status">
-    <div class="status-dot live" id="status-dot"></div>
-    <span id="status-text">Waiting for scan...</span>
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">Loading historical data...</span>
   </div>
 </div>
 
 <div class="main">
-  <div class="waiting" id="waiting-state">
-    <div class="waiting-ring"></div>
-    <div class="waiting-text">Waiting for customer scan</div>
-    <div class="waiting-sub">When a customer scans produce in-store, the personalised result appears here instantly via Solace event mesh</div>
-  </div>
+  <div class="dashboard-content">
+    <!-- SCAN RESULTS SECTION -->
+    <div class="scan-section">
+      <!-- Loading historical data state -->
+      <div class="loading-historical" id="loading-state">
+        <div class="waiting-ring"></div>
+        <div class="loading-text">Loading dashboard data...</div>
+        <div class="loading-sub">Fetching recent scans and analytics from SAM retail_scan_history_agent</div>
+      </div>
 
-  <div class="result-card" id="result-card">
-    <div class="card-top">
-      <div class="customer-info">
-        <div class="customer-event">Customer scanned</div>
-        <div class="product-name-dash" id="d-product">Bananas — Conventional · PLU 4011</div>
-        <div class="customer-name" id="d-name">Anna</div>
-        <div class="customer-tier" id="d-tier">Gold Circle · 18% discount applied</div>
+      <!-- Waiting for new scans state -->
+      <div class="waiting" id="waiting-state" style="display:none;">
+        <div class="waiting-ring"></div>
+        <div class="waiting-text">Waiting for customer scan</div>
+        <div class="waiting-sub">When a customer scans produce in-store, the personalised result appears here instantly via Solace event mesh</div>
       </div>
-      <div class="price-block">
-        <div class="price-label">Your price</div>
-        <div class="price-final" id="d-price">$0.65</div>
-        <div class="price-unit">/lb</div>
-        <div class="price-badge" id="d-badge">Gold 18% off</div>
-      </div>
-    </div>
-    <div class="divider"></div>
-    <div class="ai-section">
-      <div class="ai-label" id="d-ai-label">Personalised recommendation</div>
-      <div class="ai-text" id="d-ai-text"></div>
-      <div class="alt-row" id="d-alt-row" style="display:none">
-        <div>
-          <div class="alt-name" id="d-alt-name">Organic Bananas</div>
-          <div class="alt-price" id="d-alt-price">$0.95/lb · PLU 94011 · Aisle A2</div>
+
+      <!-- Live scan result -->
+      <div class="result-card" id="result-card" style="display:none;">
+        <div class="card-top">
+          <div class="customer-info">
+            <div class="customer-event">Customer scanned</div>
+            <div class="product-name-dash" id="d-product">Bananas — Conventional · PLU 4011</div>
+            <div class="customer-name" id="d-name">Anna</div>
+            <div class="customer-tier" id="d-tier">Gold Circle · 18% discount applied</div>
+          </div>
+          <div class="price-block">
+            <div class="price-label">Your price</div>
+            <div class="price-final" id="d-price">$0.65</div>
+            <div class="price-unit">/lb</div>
+            <div class="price-badge" id="d-badge">Gold 18% off</div>
+          </div>
         </div>
-        <div class="alt-badge">Switch to organic</div>
+        <div class="divider"></div>
+        <div class="ai-section">
+          <div class="ai-label" id="d-ai-label">Personalised recommendation</div>
+          <div class="ai-text" id="d-ai-text"></div>
+          <div class="alt-row" id="d-alt-row" style="display:none">
+            <div>
+              <div class="alt-name" id="d-alt-name">Organic Bananas</div>
+              <div class="alt-price" id="d-alt-price">$0.95/lb · PLU 94011 · Aisle A2</div>
+            </div>
+            <div class="alt-badge">Switch to organic</div>
+          </div>
+        </div>
+        <div class="also-section">
+          <div class="also-label">You might also like</div>
+          <div class="also-items" id="d-also"></div>
+        </div>
       </div>
     </div>
-    <div class="also-section">
-      <div class="also-label">You might also like</div>
-      <div class="also-items" id="d-also"></div>
+
+    <!-- ANALYTICS PANELS SECTION -->
+    <div class="alerts-section">
+      <!-- Recent Scans Panel -->
+      <div class="alert-panel">
+        <h3>📊 Recent Customer Scans</h3>
+        <div id="recent-scans-container">
+          <div class="no-alerts">Loading recent scan history...</div>
+        </div>
+      </div>
+
+      <!-- Inventory Alerts Panel -->
+      <div class="alert-panel">
+        <h3>
+          🚨 Inventory Alerts
+          <span class="alert-count" id="alert-count" style="display:none;">0</span>
+        </h3>
+        <div id="alerts-container">
+          <div class="no-alerts">No alerts - all inventory levels normal</div>
+        </div>
+      </div>
+
+      <!-- Organic Trends Panel -->
+      <div class="alert-panel">
+        <h3>🌱 Organic Trends</h3>
+        <div class="trend-metric">
+          <span>Organic Scans</span>
+          <span class="metric-value" id="organic-count">0</span>
+        </div>
+        <div class="trend-metric">
+          <span>Conventional Scans</span>
+          <span class="metric-value" id="conventional-count">0</span>
+        </div>
+        <div class="trend-metric">
+          <span>Total Scans</span>
+          <span class="metric-value" id="total-scans">0</span>
+        </div>
+        <div class="trend-metric">
+          <span>Organic Percentage</span>
+          <span class="metric-value" id="organic-percentage">0%</span>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
 <div class="bottom-bar">
-  <div class="bb-event" id="bb-event">No events yet</div>
+  <div class="bb-event" id="bb-event">Dashboard loaded with historical data</div>
   <div class="bb-tech">
     <span class="tech-tag sam">SAM — real-time orchestration</span>
     <span class="tech-tag lc">LangChain — personalisation reasoning</span>
@@ -117,69 +278,270 @@
 </div>
 
 <script>
-// Poll the PWA backend for results via SSE
-// The backend subscribes to store/result/> and relays via /api/dashboard/stream
+// Dashboard state
+let alerts = [];
+let organicStats = { organic_count: 0, conventional_count: 0, total_scans: 0, organic_percentage: 0 };
+let recentScans = [];
+
+// Load historical data from SAM retail_scan_history_agent
+async function loadHistoricalData() {
+    try {
+        document.getElementById('status-text').textContent = 'Loading historical data...';
+        
+        // Call SAM agent through your PWA backend
+        const response = await fetch('/api/agent/retail-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                query: 'Get recent scan history and organic vs conventional trends from the database'
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load historical data');
+        }
+        
+        const data = await response.json();
+        console.log('Historical data loaded:', data);
+        
+        // Process the response and populate dashboard
+        populateDashboardWithHistory(data);
+        
+    } catch (error) {
+        console.error('Failed to load historical data:', error);
+        // Fallback to waiting state if agent call fails
+        showWaitingState();
+    }
+}
+
+// Populate dashboard with historical data
+function populateDashboardWithHistory(data) {
+    // Hide loading state, show waiting for new scans
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('waiting-state').style.display = 'flex';
+    
+    // Update status
+    document.getElementById('status-dot').classList.add('live');
+    document.getElementById('status-text').textContent = 'Dashboard loaded — waiting for new scans';
+    
+    // Extract and display recent scans
+    if (data.recent_scans && Array.isArray(data.recent_scans)) {
+        updateRecentScans(data.recent_scans);
+    }
+    
+    // Extract and display organic trends
+    if (data.organic_count !== undefined || data.conventional_count !== undefined) {
+        updateOrganicStats({
+            organic_count: data.organic_count || 0,
+            conventional_count: data.conventional_count || 0,
+            total_scans: data.total_scans || ((data.organic_count || 0) + (data.conventional_count || 0)),
+            organic_percentage: data.organic_percentage || 0
+        });
+    }
+    
+    // Update bottom bar
+    document.getElementById('bb-event').textContent = 
+        `Historical data loaded at ${new Date().toLocaleTimeString()}`;
+}
+
+// Show waiting state if historical data fails to load
+function showWaitingState() {
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('waiting-state').style.display = 'flex';
+    document.getElementById('status-dot').classList.add('live');
+    document.getElementById('status-text').textContent = 'Connected — waiting for scan';
+    
+    // Update recent scans to show no data
+    const container = document.getElementById('recent-scans-container');
+    container.innerHTML = '<div class="no-alerts">No historical data available</div>';
+}
+
+// Update recent scans display
+function updateRecentScans(scans) {
+    const container = document.getElementById('recent-scans-container');
+    
+    if (!scans || scans.length === 0) {
+        container.innerHTML = '<div class="no-alerts">No recent scans</div>';
+        return;
+    }
+    
+    container.innerHTML = scans.slice(0, 5).map(scan => `
+        <div class="scan-item">
+            <div class="scan-customer">Customer ${scan.customer_id}</div>
+            <div class="scan-product">${scan.product_name} (PLU ${scan.product_plu})</div>
+            <div>
+                <span class="${scan.organic ? 'scan-organic' : 'scan-conventional'}">
+                    ${scan.organic ? 'ORGANIC' : 'CONVENTIONAL'}
+                </span>
+                <span class="scan-time">${new Date(scan.purchased_at).toLocaleString()}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Update organic trends display
+function updateOrganicStats(stats) {
+    organicStats = stats;
+    document.getElementById('organic-count').textContent = stats.organic_count;
+    document.getElementById('conventional-count').textContent = stats.conventional_count;
+    document.getElementById('total-scans').textContent = stats.total_scans;
+    document.getElementById('organic-percentage').textContent = stats.organic_percentage.toFixed(1) + '%';
+}
+
+// REAL-TIME SCAN RESULT HANDLING
 const es = new EventSource('/api/dashboard/stream');
 
 es.onopen = () => {
-  document.getElementById('status-dot').classList.add('live');
-  document.getElementById('status-text').textContent = 'Connected — waiting for scan';
+    console.log('Connected to live scan stream');
 };
 
 es.onmessage = (e) => {
-  const data = JSON.parse(e.data);
-  if (data.status === 'waiting' || data.status === 'keepalive') return;
-  renderDashboard(data);
+    const data = JSON.parse(e.data);
+    if (data.status === 'waiting' || data.status === 'keepalive') return;
+    renderLiveScanResult(data);
 };
 
 es.onerror = () => {
-  document.getElementById('status-dot').classList.remove('live');
-  document.getElementById('status-text').textContent = 'Reconnecting...';
+    document.getElementById('status-dot').classList.remove('live');
+    document.getElementById('status-text').textContent = 'Reconnecting...';
 };
 
-function renderDashboard(data) {
-  document.getElementById('waiting-state').style.display = 'none';
-  const card = document.getElementById('result-card');
-  card.classList.remove('visible');
-  setTimeout(() => card.classList.add('visible'), 50);
+function renderLiveScanResult(data) {
+    // Hide waiting state, show scan result
+    document.getElementById('waiting-state').style.display = 'none';
+    const card = document.getElementById('result-card');
+    card.style.display = 'block';
+    card.classList.remove('visible');
+    setTimeout(() => card.classList.add('visible'), 50);
 
-  document.getElementById('status-text').textContent = `Last event: ${new Date().toLocaleTimeString()}`;
-  document.getElementById('bb-event').textContent =
-    `store/result/${data.customer_id || ''} → received at ${new Date().toLocaleTimeString()}`;
+    // Update status and event log
+    document.getElementById('status-text').textContent = `Last scan: ${new Date().toLocaleTimeString()}`;
+    document.getElementById('bb-event').textContent =
+        `store/result/${data.customer_id || ''} → received at ${new Date().toLocaleTimeString()}`;
 
-  document.getElementById('d-name').textContent = data.customer_name || 'Customer';
-  document.getElementById('d-tier').textContent =
-    `${data.loyalty_tier || ''} Circle · ${data.discount_pct > 0 ? data.discount_pct + '% discount applied' : 'Standard pricing'}`;
-  document.getElementById('d-price').textContent = `$${Number(data.final_price_per_lb || 0.79).toFixed(2)}`;
-  document.getElementById('d-badge').textContent =
-    data.discount_pct > 0 ? `${data.loyalty_tier} ${data.discount_pct}% off` : 'Standard price';
+    // Populate scan result details
+    document.getElementById('d-name').textContent = data.customer_name || 'Customer';
+    document.getElementById('d-tier').textContent =
+        `${data.loyalty_tier || ''} Circle · ${data.discount_pct > 0 ? data.discount_pct + '% discount applied' : 'Standard pricing'}`;
+    document.getElementById('d-price').textContent = `$${Number(data.final_price_per_lb || 0.79).toFixed(2)}`;
+    document.getElementById('d-badge').textContent =
+        data.discount_pct > 0 ? `${data.loyalty_tier} ${data.discount_pct}% off` : 'Standard price';
 
-  const hasAlt = data.show_organic_alternative && data.organic_alternative;
-  const aiLabel = document.getElementById('d-ai-label');
-  aiLabel.textContent = hasAlt ? 'Personalised recommendation' : 'Freshness tip';
-  aiLabel.className = `ai-label${hasAlt ? '' : ' no-alt'}`;
-  document.getElementById('d-ai-text').textContent = data.personalised_text || '';
+    const hasAlt = data.show_organic_alternative && data.organic_alternative;
+    const aiLabel = document.getElementById('d-ai-label');
+    aiLabel.textContent = hasAlt ? 'Personalised recommendation' : 'Freshness tip';
+    aiLabel.className = `ai-label${hasAlt ? '' : ' no-alt'}`;
+    document.getElementById('d-ai-text').textContent = data.personalised_text || '';
 
-  const altRow = document.getElementById('d-alt-row');
-  if (hasAlt) {
-    altRow.style.display = 'flex';
-    document.getElementById('d-alt-name').textContent = data.organic_alternative.name || 'Organic alternative';
-    document.getElementById('d-alt-price').textContent =
-      `$${Number(data.organic_alternative.price_per_lb || 0).toFixed(2)}/lb · PLU ${data.organic_alternative.plu || ''}`;
-  } else {
-    altRow.style.display = 'none';
-  }
+    const altRow = document.getElementById('d-alt-row');
+    if (hasAlt) {
+        altRow.style.display = 'flex';
+        document.getElementById('d-alt-name').textContent = data.organic_alternative.name || 'Organic alternative';
+        document.getElementById('d-alt-price').textContent =
+            `$${Number(data.organic_alternative.price_per_lb || 0).toFixed(2)}/lb · PLU ${data.organic_alternative.plu || ''}`;
+    } else {
+        altRow.style.display = 'none';
+    }
 
-  const alsoEl = document.getElementById('d-also');
-  if (data.also_like && data.also_like.length > 0) {
-    alsoEl.innerHTML = data.also_like.map(item => `
-      <div class="also-item">
-        <div class="also-item-name">${item.name}</div>
-        <div class="also-item-price">$${Number(item.price || 0).toFixed(2)}</div>
-      </div>
-    `).join('');
-  }
+    const alsoEl = document.getElementById('d-also');
+    if (data.also_like && data.also_like.length > 0) {
+        alsoEl.innerHTML = data.also_like.map(item => `
+            <div class="also-item">
+                <div class="also-item-name">${item.name}</div>
+                <div class="also-item-price">$${Number(item.price || 0).toFixed(2)}</div>
+            </div>
+        `).join('');
+    }
 }
+
+// REAL-TIME ALERTS VIA SOLACE
+const solaceWs = new WebSocket('ws://localhost:8080');
+
+solaceWs.onopen = function() {
+    console.log('Connected to Solace for real-time alerts');
+    
+    // Subscribe to correct topics (fixed from earlier)
+    solaceWs.send(JSON.stringify({
+        action: 'subscribe',
+        topic: 'store/inventory/alert/>'
+    }));
+    
+    solaceWs.send(JSON.stringify({
+        action: 'subscribe', 
+        topic: 'store/trend/organic'
+    }));
+};
+
+solaceWs.onmessage = function(event) {
+    try {
+        const message = JSON.parse(event.data);
+        const data = JSON.parse(message.payload || message.data);
+        
+        // Handle inventory alerts (from store/inventory/alert/> topic)
+        if (data.alert === true && data.stock_level <= 5) {
+            addAlert({
+                plu: data.plu,
+                product_name: data.product_name,
+                stock_level: data.stock_level,
+                timestamp: new Date().toLocaleTimeString()
+            });
+        }
+        
+        // Handle organic trends (from store/trend/organic topic)
+        if (data.organic_count !== undefined || data.conventional_count !== undefined) {
+            updateOrganicStats({
+                organic_count: data.organic_count || organicStats.organic_count,
+                conventional_count: data.conventional_count || organicStats.conventional_count,
+                total_scans: (data.organic_count || 0) + (data.conventional_count || 0),
+                organic_percentage: ((data.organic_count || 0) / Math.max(1, (data.organic_count || 0) + (data.conventional_count || 0))) * 100
+            });
+        }
+        
+        // Debug logging
+        console.log('Received real-time message:', data);
+        
+    } catch (e) {
+        console.error('Real-time message parsing error:', e);
+        console.log('Raw event:', event.data);
+    }
+};
+
+solaceWs.onerror = function(error) {
+    console.error('Solace WebSocket error:', error);
+};
+
+function addAlert(alertData) {
+    alerts.push(alertData);
+    updateAlerts();
+}
+
+function updateAlerts() {
+    const container = document.getElementById('alerts-container');
+    const countElement = document.getElementById('alert-count');
+    
+    if (alerts.length === 0) {
+        container.innerHTML = '<div class="no-alerts">No alerts - all inventory levels normal</div>';
+        countElement.style.display = 'none';
+    } else {
+        container.innerHTML = alerts.slice(-3).map(alert => `
+            <div class="low-stock-alert">
+                <div style="font-weight: bold; margin-bottom: 8px;">🚨 LOW STOCK ALERT</div>
+                <div><strong>PLU:</strong> ${alert.plu}</div>
+                <div><strong>Product:</strong> ${alert.product_name}</div>
+                <div><strong>Stock:</strong> ${alert.stock_level} units remaining</div>
+                <div style="margin-top: 8px; opacity: 0.8; font-size: 12px;">${alert.timestamp}</div>
+            </div>
+        `).join('');
+        countElement.textContent = alerts.length;
+        countElement.style.display = 'block';
+    }
+}
+
+// Initialize dashboard on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Dashboard initializing...');
+    loadHistoricalData();
+});
 </script>
 </body>
 </html>

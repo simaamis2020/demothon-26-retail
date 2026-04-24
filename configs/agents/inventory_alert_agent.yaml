@@ -1,0 +1,111 @@
+log:
+  stdout_log_level: DEBUG
+  log_file_level: DEBUG
+  log_file: "inventory_alert_agent.log"
+
+apps:
+  - name: "inventory_alert_agent"
+    app_base_path: "."
+    app_module: "solace_agent_mesh.agent.sac.app"
+    broker:
+      dev_mode: ${SOLACE_DEV_MODE, false}
+      broker_url: ${SOLACE_BROKER_URL, ws://localhost:8080}
+      broker_username: ${SOLACE_BROKER_USERNAME, default}
+      broker_password: ${SOLACE_BROKER_PASSWORD, default}
+      broker_vpn: ${SOLACE_BROKER_VPN, default}
+      temporary_queue: ${USE_TEMPORARY_QUEUES, true}
+    app_config:
+      namespace: "${NAMESPACE}"
+      supports_streaming: false
+      agent_name: "inventory_alert_agent"
+      display_name: "Inventory & Organic Trends Agent"
+      deployment:
+        id: "enhanced-inventory-001"
+      instruction: |
+        You are the Inventory & Organic Trends Agent for the retail demo. You perform dual functions on every scan:
+
+        **FUNCTION 1: INVENTORY MONITORING**
+        - Extract PLU from the LangGraph response text
+        - Query products table: SELECT stock_level, name FROM products WHERE plu='{extracted_plu}'
+        - If stock_level ≤ 5, publish inventory alert as JSON:
+        {
+          "alert": true,
+          "plu": "{plu}",
+          "product_name": "{name}",
+          "stock_level": {current_level},
+          "timestamp": "{current_timestamp}",
+          "alert_type": "low_stock"
+        }
+
+        **FUNCTION 2: ORGANIC TREND TRACKING (REAL-TIME + HISTORICAL)**
+        - Query historical totals from database:
+          SELECT COUNT(*) as organic_total FROM purchase_history WHERE organic=1;
+          SELECT COUNT(*) as conventional_total FROM purchase_history WHERE organic=0;
+        - Determine current scan type: organic if PLU starts with '9', conventional otherwise
+        - Add current scan to historical totals:
+          - If organic scan: organic_count = organic_total + 1, conventional_count = conventional_total
+          - If conventional scan: conventional_count = conventional_total + 1, organic_count = organic_total
+        - Calculate: total_scans = organic_count + conventional_count
+        - Calculate: organic_percentage = (organic_count / total_scans) * 100
+        - Publish organic trends as JSON:
+        {
+          "organic_count": {organic_count},
+          "conventional_count": {conventional_count}, 
+          "total_scans": {total_scans},
+          "organic_percentage": {organic_percentage},
+          "last_scan_type": "{organic|conventional}",
+          "last_plu": "{plu}",
+          "timestamp": "{current_timestamp}"
+        }
+
+        **RESPONSE FORMAT:**
+        Always return both results in your response:
+        INVENTORY: {inventory_alert_json}
+        ORGANIC_TRENDS: {organic_trends_json}
+
+        This allows the gateway to extract and publish each to separate topics.
+
+      model:
+        model: "${LLM_SERVICE_GENERAL_MODEL_NAME}"
+        api_base: "${LLM_SERVICE_ENDPOINT}"
+        api_key: "${LLM_SERVICE_API_KEY}"
+      tools:
+        - tool_type: builtin-group
+          group_name: "data_analysis"
+        - tool_type: python
+          component_module: "sam_sql_database_tool.tools"
+          component_base_path: "."
+          class_name: "SqlDatabaseTool"
+          tool_config:
+            tool_name: "demo_sql_query"
+            tool_description: "Query the demo mysql database for inventory and purchase history."
+            connection_string: "mysql+pymysql://admin:admin@host.minikube.internal:3306/demo"
+      session_service:
+        type: ${PERSISTENCE_TYPE, sql}
+        database_url: ${DATABASE_URL, sqlite:///enhanced_inventory.db}
+        default_behavior: PERSISTENT
+      artifact_service:
+        type: filesystem
+        base_path: /tmp/samv2
+        artifact_scope: namespace
+      artifact_handling_mode: reference
+      enable_embed_resolution: true
+      enable_artifact_content_instruction: true
+      agent_card:
+        description: "Enhanced agent that monitors inventory levels and tracks real-time organic vs conventional trends with historical data"
+        defaultInputModes: ["text"]
+        defaultOutputModes: ["text"]
+        skills:
+          - id: "inventory_monitoring"
+            name: "Inventory Monitoring"
+            description: "Monitor product stock levels and generate low stock alerts"
+          - id: "organic_trend_tracking"
+            name: "Organic Trend Tracking"  
+            description: "Track organic vs conventional scanning patterns with historical context"
+      agent_card_publishing:
+        interval_seconds: 10
+      agent_discovery:
+        enabled: true
+      inter_agent_communication:
+        allow_list: ["*"]
+        request_timeout_seconds: 60

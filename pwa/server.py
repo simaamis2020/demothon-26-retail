@@ -160,7 +160,45 @@ async def login(request: Request):
 
     return {"token": token, "customer": customer}
 
-
+# Add this to your FastAPI server.py:
+@app.post('/api/agent/retail-history')
+async def get_retail_history():
+    try:
+        historical_data = {
+            "organic_count": 15,
+            "conventional_count": 35,
+            "total_scans": 50,
+            "organic_percentage": 30.0,
+            "recent_scans": [
+                {
+                    "customer_id": "C001",
+                    "product_plu": "4011", 
+                    "product_name": "Bananas - Conventional",
+                    "organic": False,
+                    "purchased_at": "2026-04-24T21:30:00"
+                },
+                {
+                    "customer_id": "C002",
+                    "product_plu": "94011",
+                    "product_name": "Bananas - Organic", 
+                    "organic": True,
+                    "purchased_at": "2026-04-24T21:25:00"
+                },
+                {
+                    "customer_id": "C001",
+                    "product_plu": "4046",
+                    "product_name": "Avocados - Conventional",
+                    "organic": False,
+                    "purchased_at": "2026-04-24T21:20:00"
+                }
+            ]
+        }
+        
+        return historical_data
+        
+    except Exception as e:
+        print(f"Error getting retail history: {e}")
+        return {"error": "Failed to load historical data"}
 @app.post("/api/scan")
 async def scan(request: Request):
     """Called by PWA when customer scans a barcode."""

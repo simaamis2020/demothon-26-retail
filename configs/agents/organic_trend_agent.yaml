@@ -1,0 +1,76 @@
+log:
+  stdout_log_level: DEBUG
+  log_file_level: DEBUG
+  log_file: "organic_trend_agent.log"
+
+apps:
+  - name: "organic_trend_agent"
+    app_base_path: "."
+    app_module: "solace_agent_mesh.agent.sac.app"
+    broker:
+      dev_mode: ${SOLACE_DEV_MODE, false}
+      broker_url: ${SOLACE_BROKER_URL, ws://localhost:8080}
+      broker_username: ${SOLACE_BROKER_USERNAME, default}
+      broker_password: ${SOLACE_BROKER_PASSWORD, default}
+      broker_vpn: ${SOLACE_BROKER_VPN, default}
+      temporary_queue: ${USE_TEMPORARY_QUEUES, true}
+    app_config:
+      namespace: "${NAMESPACE}"
+      supports_streaming: false
+      agent_name: "organic_trend_agent"
+      display_name: "Organic Trend Agent"
+      deployment:
+        id: "organic-trend-001"
+      instruction: |
+        You are the Organic Trend Agent that tracks organic vs conventional produce scanning patterns.
+
+        When you receive a message about a product scan, extract the PLU code and:
+
+        1. Determine if organic (PLU starts with 9) or conventional
+        2. Keep running counters in your session memory  
+        3. Calculate percentage: organic_pct = (organic_count / total_scans) * 100
+        4. Return a JSON summary with current stats:
+        
+        {
+          "agent": "organic_trend_agent",
+          "organic_count": <number>,
+          "conventional_count": <number>,
+          "total_scans": <number>,
+          "organic_percentage": <percentage>,
+          "timestamp": "<current_timestamp>"
+        }
+        
+        Always respond with this JSON format so the dashboard can display live trends.
+      model:
+        model: "${LLM_SERVICE_GENERAL_MODEL_NAME}"
+        api_base: "${LLM_SERVICE_ENDPOINT}"
+        api_key: "${LLM_SERVICE_API_KEY}"
+      tools:
+        - tool_type: builtin-group
+          group_name: "data_analysis"
+      session_service:
+        type: ${PERSISTENCE_TYPE, sql}
+        database_url: ${DATABASE_URL, sqlite:///organic_trend.db}
+        default_behavior: PERSISTENT
+      artifact_service:
+        type: filesystem
+        base_path: /tmp/samv2
+        artifact_scope: namespace
+      artifact_handling_mode: reference
+      enable_embed_resolution: true
+      enable_artifact_content_instruction: true
+      agent_card:
+        description: "Tracks organic vs conventional produce scanning patterns in real-time"
+        defaultInputModes: ["text"]
+        defaultOutputModes: ["text"]
+        skills:
+          - id: "organic_tracking"
+            name: "Organic Trend Tracking"
+            description: "Monitor and report organic vs conventional scanning ratios"
+      agent_card_publishing:
+        interval_seconds: 10
+      agent_discovery:
+        enabled: true
+      inter_agent_communication:
+        allow_list: ["*"]
+        request_timeout_seconds: 60
