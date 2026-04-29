@@ -10,3 +10,21 @@ venv/
 .DS_Store
 *.log
 !.env.example
+
+# Node
+node_modules/
+
+# LangGraph runtime
+.langgraph_api/
+
+# Machine-specific agent IDs
+sam-proxy-langgraph-id.txt
+
+# Backups and editor temp files
+*.backup
+*-old.html
+~$*
+
+# Accidentally-redirected command output
+service:*
+status:*
