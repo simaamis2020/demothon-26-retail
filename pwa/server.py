@@ -119,9 +119,23 @@ def db():
 
 # ── Simple in-memory session store (demo only) ────────────────────────────────
 sessions: dict[str, dict] = {}
+employee_sessions: dict[str, dict] = {}
 
 # ── Routes ────────────────────────────────────────────────────────────────────
-
+@app.get("/api/dashboard/config")
+async def dashboard_config():
+    """
+    Serves Solace connection details to the browser dashboard.
+    NOTE: credentials still end up in the browser at runtime; this endpoint
+    just keeps them out of source control. For real prod, replace with a
+    server-side WebSocket proxy or short-lived token auth.
+    """
+    return {
+        "solace_ws_url": os.getenv("SOLACE_WS_URL", "ws://mr-connection-263ctr9j5nk.messaging.solace.cloud:80"),
+        "solace_vpn": os.getenv("SOLACE_VPN"),
+        "solace_username": os.getenv("SOLACE_USERNAME"),
+        "solace_password": os.getenv("SOLACE_PASSWORD"),
+    }
 @app.post("/api/login")
 async def login(request: Request):
     body = await request.json()
@@ -159,6 +173,27 @@ async def login(request: Request):
     sessions[token] = customer
 
     return {"token": token, "customer": customer}
+
+@app.post("/api/employee/login")
+async def employee_login(request: Request):
+    """Employee login with PIN for demo purposes."""
+    body = await request.json()
+    pin = body.get("pin", "")
+    
+    # Demo employees (in production, this would be a proper database)
+    demo_employees = {
+        "1234": {"employee_id": "E001", "name": "Store Manager", "role": "manager"},
+        "5678": {"employee_id": "E002", "name": "Sales Associate", "role": "associate"}
+    }
+    
+    employee = demo_employees.get(pin)
+    if not employee:
+        raise HTTPException(status_code=401, detail="Invalid employee PIN")
+    
+    token = f"emp_tok_{employee['employee_id']}_{int(time.time())}"
+    employee_sessions[token] = employee
+    
+    return {"token": token, "employee": employee}
 
 # Add this to your FastAPI server.py:
 @app.post('/api/agent/retail-history')
@@ -228,6 +263,67 @@ async def scan(request: Request):
     publisher.publish(msg, Topic.of(topic))
 
     return {"status": "published", "topic": topic}
+
+@app.post("/api/purchase")
+async def purchase(request: Request):
+    """Called by PWA when employee processes a purchase."""
+    body = await request.json()
+    token = body.get("token", "")
+    plu = body.get("plu", "")
+
+    employee = employee_sessions.get(token)
+    if not employee:
+        raise HTTPException(status_code=401, detail="Employee not logged in")
+
+    employee_id = employee["employee_id"]
+
+    # Update stock in database
+    try:
+        conn = db()
+        cur = conn.cursor()
+        
+        # Get current stock and product info
+        cur.execute("SELECT stock_level, name FROM products WHERE plu = %s", (plu,))
+        product = cur.fetchone()
+        
+        if not product:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Product not found")
+            
+        current_stock, product_name = product
+        new_stock = max(0, current_stock - 1)  # Prevent negative stock
+        
+        # Update stock
+        cur.execute("UPDATE products SET stock_level = %s WHERE plu = %s", (new_stock, plu))
+        conn.commit()
+        conn.close()
+        
+        # Publish purchase event to Solace for inventory monitoring
+        purchase_data = {
+            "employee_id": employee_id,
+            "plu": plu,
+            "product_name": product_name,
+            "old_stock": current_stock,
+            "new_stock": new_stock,
+            "purchased_at": time.time()
+        }
+        
+        payload = json.dumps(purchase_data)
+        topic = f"store/purchase/completed/{employee_id}/{plu}"
+        msg = messaging_service.message_builder().build(payload)
+        publisher.publish(msg, Topic.of(topic))
+        
+        return {
+            "status": "purchase_completed",
+            "topic": topic, 
+            "product_name": product_name,
+            "old_stock": current_stock,
+            "new_stock": new_stock
+        }
+        
+    except Exception as e:
+        print(f"Purchase error: {e}")
+        raise HTTPException(status_code=500, detail="Purchase processing failed")
 
 
 @app.get("/api/result/stream")

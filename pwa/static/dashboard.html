@@ -3,167 +3,733 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Demothon-26 — Stage Dashboard</title>
+<title>demothon-26 — Live Store Monitor</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<!-- Solace JavaScript SDK - Local file -->
+<script src="./solclient.js"></script>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0a;color:#fff;min-height:100vh;display:flex;flex-direction:column}
-  .top-bar{background:#1a1a1a;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2a2a}
-  .top-logo{font-size:22px;font-weight:300;color:#fff;letter-spacing:-0.5px}
-  .top-logo b{font-weight:700;color:#cc0000}
-  .top-status{display:flex;align-items:center;gap:8px;font-size:13px;color:#666}
-  .status-dot{width:8px;height:8px;border-radius:50%;background:#333;transition:background .3s}
-  .status-dot.live{background:#4caf50;animation:pulse 2s ease-in-out infinite}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-  .main{flex:1;display:flex;flex-direction:column;padding:40px;gap:20px}
-  .dashboard-content{display:flex;gap:20px;flex:1}
-  .scan-section{flex:2;display:flex;align-items:center;justify-content:center}
-  .alerts-section{flex:1;display:flex;flex-direction:column;gap:16px}
-  .waiting{text-align:center;display:flex;flex-direction:column;align-items:center;gap:20px}
-  .waiting-ring{width:80px;height:80px;border:3px solid #222;border-top-color:#cc0000;border-radius:50%;animation:spin 1s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .waiting-text{font-size:20px;color:#444}
-  .waiting-sub{font-size:14px;color:#333}
-  .loading-historical{text-align:center;display:flex;flex-direction:column;align-items:center;gap:20px}
-  .loading-text{font-size:20px;color:#4caf50}
-  .loading-sub{font-size:14px;color:#666}
-  .result-card{background:#111;border-radius:24px;padding:48px;max-width:800px;width:100%;opacity:0;transform:translateY(16px);transition:opacity .5s,transform .5s}
-  .result-card.visible{opacity:1;transform:translateY(0)}
-  .card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px}
-  .customer-info{}
-  .customer-event{font-size:12px;color:#555;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
-  .customer-name{font-size:40px;font-weight:600;color:#fff;margin-bottom:4px}
-  .customer-tier{font-size:16px;color:#888}
-  .price-block{text-align:right}
-  .price-label{font-size:12px;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
-  .price-final{font-size:48px;font-weight:700;color:#cc0000;line-height:1}
-  .price-unit{font-size:18px;color:#666;margin-top:4px}
-  .price-badge{background:#cc0000;color:#fff;font-size:13px;font-weight:600;padding:5px 12px;border-radius:8px;display:inline-block;margin-top:8px}
-  .divider{height:1px;background:#222;margin:0 0 32px}
-  .ai-section{margin-bottom:32px}
-  .ai-label{font-size:12px;font-weight:600;color:#4caf50;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px}
-  .ai-label.no-alt{color:#cc0000}
-  .ai-text{font-size:22px;color:#ccc;line-height:1.6;margin-bottom:20px}
-  .alt-row{background:#0d1f0d;border:1px solid #1a3d1a;border-radius:14px;padding:20px 24px;display:flex;align-items:center;gap:20px}
-  .alt-name{font-size:20px;font-weight:600;color:#4caf50}
-  .alt-price{font-size:14px;color:#3d8f3d;margin-top:4px}
-  .alt-badge{background:#4caf50;color:#fff;font-size:14px;font-weight:600;padding:8px 18px;border-radius:8px;margin-left:auto;flex-shrink:0}
-  .also-section{}
-  .also-label{font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px}
-  .also-items{display:flex;gap:14px}
-  .also-item{flex:1;background:#161616;border:1px solid #222;border-radius:12px;padding:16px;text-align:center}
-  .also-item-name{font-size:15px;font-weight:500;color:#ccc;margin-bottom:6px}
-  .also-item-price{font-size:18px;font-weight:600;color:#cc0000}
-  .bottom-bar{background:#111;padding:12px 32px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #1a1a1a}
-  .bb-event{font-size:12px;color:#444}
-  .bb-tech{font-size:12px;color:#333;display:flex;align-items:center;gap:16px}
-  .tech-tag{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;padding:3px 10px;font-size:11px;color:#555}
-  .tech-tag.sam{border-color:#1D9E75;color:#1D9E75}
-  .tech-tag.lc{border-color:#534AB7;color:#7F77DD}
-  .product-name-dash{font-size:14px;color:#555;margin-bottom:4px}
+  :root {
+    /* Solace Official Brand Colors */
+    --classic-green: #00C895;
+    --bright-green: #ABFF88;
+    --deep-blue: #093B5F;
+    --dark-blue: #03213B;
+    --white: #FFFFFF;
+    --spring-green: #C7FFCB;
+    --sky-blue: #C2F7FF;
+    --sunrise-yellow: #FFF7C2;
+    --dark-green: #009193;
+    --orange: #FCA829;
+    --cool-gray-12: #F4F4F4;
+    --cool-gray-13: #EAEAEA;
+    --cool-gray-14: #D6D6D6;
+    
+    /* Dark Mode Application (per brand guidelines) */
+    --bg-primary: var(--deep-blue);
+    --bg-secondary: var(--dark-blue);
+    --text-primary: var(--white);
+    --text-secondary: var(--classic-green);
+    --accent-primary: var(--classic-green);
+    --accent-secondary: var(--bright-green);
+    --border-color: rgba(0, 200, 149, 0.2);
+    --surface-primary: rgba(0, 200, 149, 0.08);
+    --surface-secondary: rgba(171, 255, 136, 0.05);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    /* Figtree fallback using Inter per brand guidelines */
+    font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.5;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Organic brand shapes as background elements */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -20%;
+    right: -15%;
+    width: 300px;
+    height: 400px;
+    background: rgba(0, 200, 149, 0.02);
+    border-radius: 50% 30% 70% 40%;
+    transform: rotate(25deg);
+    z-index: -1;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -30%;
+    left: -20%;
+    width: 350px;
+    height: 450px;
+    background: rgba(171, 255, 136, 0.015);
+    border-radius: 40% 60% 30% 70%;
+    transform: rotate(-15deg);
+    z-index: -1;
+  }
+
+  .top-bar {
+    background: var(--surface-primary);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-color);
+    backdrop-filter: blur(10px);
+  }
+  
+  .top-logo {
+    /* Primary headline styling per brand guidelines */
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+  }
+  
+  .top-logo b {
+    font-weight: 700;
+    color: var(--accent-primary);
+  }
+  
+  .top-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* Space Mono for technical status */
+    font-family: 'Space Mono', 'Cascadia Mono', monospace;
+    font-size: 13px;
+    color: var(--cool-gray-14);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border-color);
+    transition: background 0.3s ease;
+  }
+  
+  .status-dot.live {
+    background: var(--accent-primary);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 40px;
+    gap: 20px;
+    position: relative;
+  }
+  
+  .dashboard-content {
+    display: flex;
+    gap: 20px;
+    flex: 1;
+  }
+  
+  .scan-section {
+    flex: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .alerts-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .waiting {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  
+  .waiting-ring {
+    width: 80px;
+    height: 80px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  .waiting-text {
+    font-size: 20px;
+    color: var(--cool-gray-13);
+    font-weight: 500;
+  }
+  
+  .waiting-sub {
+    /* Space Mono for technical descriptions */
+    font-family: 'Space Mono', 'Cascadia Mono', monospace;
+    font-size: 14px;
+    color: var(--cool-gray-14);
+    max-width: 400px;
+    line-height: 1.4;
+  }
+  
+  .loading-historical {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  
+  .loading-text {
+    font-size: 20px;
+    color: var(--accent-primary);
+    font-weight: 500;
+  }
+  
+  .loading-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    color: var(--cool-gray-13);
+    max-width: 500px;
+    line-height: 1.4;
+  }
+  
+  .result-card {
+    background: var(--surface-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    padding: 48px;
+    max-width: 800px;
+    width: 100%;
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    position: relative;
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+  }
+
+  /* Subtle brand shape in result card */
+  .result-card::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    right: -25%;
+    width: 200px;
+    height: 280px;
+    background: rgba(0, 200, 149, 0.03);
+    border-radius: 50% 30% 70% 40%;
+    transform: rotate(15deg);
+    z-index: 0;
+  }
+
+  .result-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .customer-event {
+    /* Space Mono overline text per brand guidelines */
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--accent-primary);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+    font-weight: 400;
+  }
+  
+  .customer-name {
+    /* Primary headline */
+    font-size: 40px;
+    font-weight: 300;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    letter-spacing: -0.02em;
+  }
+  
+  .customer-tier {
+    font-size: 16px;
+    color: var(--cool-gray-13);
+    font-weight: 500;
+  }
+  
+  .price-block {
+    text-align: right;
+  }
+  
+  .price-label {
+    /* Space Mono overline */
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--accent-primary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  
+  .price-final {
+    font-size: 48px;
+    font-weight: 700;
+    color: var(--orange);
+    line-height: 1;
+  }
+  
+  .price-unit {
+    font-family: 'Space Mono', monospace;
+    font-size: 18px;
+    color: var(--cool-gray-13);
+    margin-top: 4px;
+  }
+  
+  .price-badge {
+    background: var(--orange);
+    color: var(--dark-blue);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 8px;
+    display: inline-block;
+    margin-top: 8px;
+  }
+  
+  .divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 0 0 32px;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .ai-section {
+    margin-bottom: 32px;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .ai-label {
+    /* Space Mono overline */
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--accent-primary);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+  }
+  
+  .ai-label.no-alt {
+    color: var(--orange);
+  }
+  
+  .ai-text {
+    font-size: 22px;
+    color: var(--text-primary);
+    line-height: 1.6;
+    margin-bottom: 20px;
+    font-weight: 400;
+  }
+  
+  .alt-row {
+    background: var(--surface-secondary);
+    border: 1px solid var(--accent-primary);
+    border-radius: 14px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  
+  .alt-name {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--accent-primary);
+  }
+  
+  .alt-price {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    color: var(--dark-green);
+    margin-top: 4px;
+  }
+  
+  .alt-badge {
+    background: var(--accent-primary);
+    color: var(--dark-blue);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 18px;
+    border-radius: 8px;
+    margin-left: auto;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .alt-badge:hover {
+    background: var(--dark-green);
+    transform: translateY(-1px);
+  }
+  
+  .also-section {
+    position: relative;
+    z-index: 1;
+  }
+  
+  .also-label {
+    /* Secondary headline */
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cool-gray-13);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 16px;
+  }
+  
+  .also-items {
+    display: flex;
+    gap: 14px;
+  }
+  
+  .also-item {
+    flex: 1;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    transition: all 0.2s ease;
+  }
+
+  .also-item:hover {
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
+    background: var(--surface-secondary);
+  }
+  
+  .also-item-name {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+  
+  .also-item-price {
+    font-family: 'Space Mono', monospace;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--orange);
+  }
+  
+  .bottom-bar {
+    background: var(--surface-primary);
+    padding: 12px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid var(--border-color);
+    backdrop-filter: blur(10px);
+  }
+  
+  .bb-event {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--cool-gray-14);
+  }
+  
+  .bb-tech {
+    font-size: 12px;
+    color: var(--cool-gray-14);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  
+  .tech-tag {
+    background: var(--surface-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--cool-gray-13);
+    font-weight: 400;
+  }
+  
+  .tech-tag.sam {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+  }
+  
+  .tech-tag.lc {
+    border-color: var(--bright-green);
+    color: var(--bright-green);
+  }
+  
+  .product-name-dash {
+    font-size: 14px;
+    color: var(--cool-gray-13);
+    margin-bottom: 4px;
+  }
 
   /* ALERT PANEL STYLES */
-  .alert-panel{
-    background:#111;
-    border:1px solid #222;
-    border-radius:16px;
-    padding:20px;
-    min-height:200px;
+  .alert-panel {
+    background: var(--surface-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 20px;
+    min-height: 200px;
+    position: relative;
+    backdrop-filter: blur(10px);
+    overflow: hidden;
   }
-  .alert-panel h3{
-    font-size:16px;
-    margin:0 0 16px 0;
-    display:flex;
-    align-items:center;
-    gap:8px;
-    color:#fff;
-    font-weight:600;
+
+  /* Subtle brand shapes in panels */
+  .alert-panel::before {
+    content: '';
+    position: absolute;
+    bottom: -40%;
+    right: -15%;
+    width: 120px;
+    height: 150px;
+    background: rgba(171, 255, 136, 0.02);
+    border-radius: 60% 40% 30% 70%;
+    transform: rotate(-20deg);
+    z-index: 0;
   }
-  .alert-count{
-    background:#cc0000;
-    color:#fff;
-    border-radius:12px;
-    padding:2px 8px;
-    font-size:12px;
-    margin-left:auto;
+  
+  .alert-panel h3 {
+    /* Secondary headline */
+    font-size: 16px;
+    margin: 0 0 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+    font-weight: 600;
+    position: relative;
+    z-index: 1;
   }
-  .low-stock-alert{
-    background:rgba(204, 0, 0, 0.1);
-    border:1px solid rgba(204, 0, 0, 0.3);
-    border-radius:8px;
-    padding:12px;
-    margin:8px 0;
-    animation:alertPulse 2s infinite;
+  
+  .alert-count {
+    background: var(--orange);
+    color: var(--dark-blue);
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 12px;
+    margin-left: auto;
+    font-weight: 700;
   }
-  @keyframes alertPulse{
-    0%,100%{opacity:1}
-    50%{opacity:0.8}
+  
+  .low-stock-alert {
+    background: rgba(252, 168, 41, 0.1);
+    border: 1px solid var(--orange);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 8px 0;
+    animation: alertPulse 2s infinite;
+    position: relative;
+    z-index: 1;
   }
-  .trend-metric{
-    display:flex;
-    justify-content:space-between;
-    padding:8px 0;
-    border-bottom:1px solid #222;
-    font-size:14px;
+  
+  @keyframes alertPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
   }
-  .trend-metric:last-child{
-    border-bottom:none;
+  
+  .alert-info {
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: var(--text-primary);
   }
-  .metric-value{
-    font-weight:bold;
-    color:#4caf50;
+  
+  .alert-time {
+    opacity: 0.8;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--cool-gray-13);
   }
-  .no-alerts{
-    text-align:center;
-    opacity:0.5;
-    padding:20px;
-    font-size:14px;
-    color:#666;
+  
+  .no-alerts {
+    color: var(--cool-gray-13);
+    font-style: italic;
+    text-align: center;
+    padding: 20px 0;
+    position: relative;
+    z-index: 1;
   }
-  .scan-item{
-    background:rgba(255,255,255,0.05);
-    border:1px solid #333;
-    border-radius:8px;
-    padding:12px;
-    margin:8px 0;
-    font-size:13px;
+  
+  /* TREND METRICS STYLES */
+  .trend-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color);
+    position: relative;
+    z-index: 1;
   }
-  .scan-customer{
-    font-weight:600;
-    color:#4caf50;
-    margin-bottom:4px;
+  
+  .trend-metric:last-child {
+    border-bottom: none;
   }
-  .scan-product{
-    color:#ccc;
-    margin-bottom:4px;
+  
+  .trend-metric span:first-child {
+    color: var(--cool-gray-13);
+    font-weight: 500;
   }
-  .scan-organic{
-    display:inline-block;
-    background:#1a3d1a;
-    color:#4caf50;
-    padding:2px 8px;
-    border-radius:4px;
-    font-size:11px;
-    margin-right:8px;
+  
+  .metric-value {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--accent-primary);
   }
-  .scan-conventional{
-    display:inline-block;
-    background:#3d1a1a;
-    color:#cc6666;
-    padding:2px 8px;
-    border-radius:4px;
-    font-size:11px;
-    margin-right:8px;
+  
+  /* SCAN ITEM STYLES */
+  .scan-item {
+    background: var(--surface-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 8px 0;
+    position: relative;
+    z-index: 1;
   }
-  .scan-time{
-    opacity:0.7;
-    font-size:11px;
+  
+  .scan-customer {
+    font-family: 'Space Mono', monospace;
+    color: var(--accent-primary);
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+  
+  .scan-product {
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+  
+  .scan-organic {
+    background: var(--accent-primary);
+    color: var(--dark-blue);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    margin-right: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  
+  .scan-conventional {
+    background: var(--cool-gray-14);
+    color: var(--dark-blue);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    margin-right: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  
+  .scan-time {
+    opacity: 0.7;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--cool-gray-13);
+  }
+
+  @media (max-width: 768px) {
+    .dashboard-content {
+      flex-direction: column;
+    }
+    
+    .customer-name {
+      font-size: 32px;
+    }
+    
+    .price-final {
+      font-size: 40px;
+    }
+    
+    .also-items {
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .main {
+      padding: 20px;
+    }
+
+    .result-card {
+      padding: 32px 24px;
+    }
+
+    .top-bar, .bottom-bar {
+      padding: 12px 20px;
+    }
+
+    .top-logo {
+      font-size: 18px;
+    }
+  }
+
+  /* Accessibility improvements */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Focus states for accessibility */
+  .alt-badge:focus {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
   }
 </style>
 </head>
 <body>
 
 <div class="top-bar">
-  <div class="top-logo">demo<b>thon</b>-26 <span style="font-size:14px;color:#555;font-weight:400;margin-left:8px">Stage Dashboard</span></div>
+  <div class="top-logo">demo<b>thon</b>-26 <span style="font-size:14px;color:var(--cool-gray-13);font-weight:400;margin-left:8px">Live Store Monitor</span></div>
   <div class="top-status">
     <div class="status-dot" id="status-dot"></div>
     <span id="status-text">Loading historical data...</span>
@@ -454,76 +1020,226 @@ function renderLiveScanResult(data) {
     }
 }
 
-// REAL-TIME ALERTS VIA SOLACE
-const solaceWs = new WebSocket('ws://localhost:8080');
+// REAL-TIME ALERTS VIA SOLACE - Using Solace JavaScript SDK
+let solaceSession = null;
 
-solaceWs.onopen = function() {
-    console.log('Connected to Solace for real-time alerts');
-    
-    // Subscribe to correct topics (fixed from earlier)
-    solaceWs.send(JSON.stringify({
-        action: 'subscribe',
-        topic: 'store/inventory/alert/>'
-    }));
-    
-    solaceWs.send(JSON.stringify({
-        action: 'subscribe', 
-        topic: 'store/trend/organic'
-    }));
-};
-
-solaceWs.onmessage = function(event) {
-    try {
-        const message = JSON.parse(event.data);
-        const data = JSON.parse(message.payload || message.data);
-        
-        // Handle inventory alerts (from store/inventory/alert/> topic)
-        if (data.alert === true && data.stock_level <= 5) {
-            addAlert({
-                plu: data.plu,
-                product_name: data.product_name,
-                stock_level: data.stock_level,
-                timestamp: new Date().toLocaleTimeString()
-            });
-        }
-        
-        // Handle organic trends (from store/trend/organic topic)
-        if (data.organic_count !== undefined || data.conventional_count !== undefined) {
-            updateOrganicStats({
-                organic_count: data.organic_count || organicStats.organic_count,
-                conventional_count: data.conventional_count || organicStats.conventional_count,
-                total_scans: (data.organic_count || 0) + (data.conventional_count || 0),
-                organic_percentage: ((data.organic_count || 0) / Math.max(1, (data.organic_count || 0) + (data.conventional_count || 0))) * 100
-            });
-        }
-        
-        // Debug logging
-        console.log('Received real-time message:', data);
-        
-    } catch (e) {
-        console.error('Real-time message parsing error:', e);
-        console.log('Raw event:', event.data);
+// Initialize Solace connection — credentials fetched from backend, NOT hardcoded
+async function initializeSolace() {
+    // Check if Solace SDK loaded
+    if (typeof solace === 'undefined') {
+        console.error('❌ Solace SDK not loaded. Falling back to polling for alerts.');
+        // Fall back to polling every 5 seconds
+        setInterval(pollForRecentAlerts, 5000);
+        return;
     }
-};
 
-solaceWs.onerror = function(error) {
-    console.error('Solace WebSocket error:', error);
-};
+    // Fetch broker config from backend (which reads it from .env)
+    let cfg;
+    try {
+        const res = await fetch('/api/dashboard/config');
+        if (!res.ok) throw new Error(`config endpoint returned ${res.status}`);
+        cfg = await res.json();
+        if (!cfg.solace_ws_url || !cfg.solace_password) {
+            throw new Error('config endpoint missing required fields');
+        }
+    } catch (e) {
+        console.error('❌ Could not load Solace config from /api/dashboard/config:', e);
+        console.error('   Make sure server.py exposes the endpoint and .env has SOLACE_WS_URL, SOLACE_VPN, SOLACE_USERNAME, SOLACE_PASSWORD set.');
+        setInterval(pollForRecentAlerts, 5000);
+        return;
+    }
+
+    try {
+        // Initialize Solace factory with latest profile (per documentation)
+        const factoryProps = new solace.SolclientFactoryProperties();
+        factoryProps.profile = solace.SolclientFactoryProfiles.version10;
+        solace.SolclientFactory.init(factoryProps);
+
+        // Create session using config from backend
+        solaceSession = solace.SolclientFactory.createSession({
+            url: cfg.solace_ws_url,
+            vpnName: cfg.solace_vpn,
+            userName: cfg.solace_username,
+            password: cfg.solace_password
+        });
+
+        // Set up session event listeners (per documentation)
+        solaceSession.on(solace.SessionEventCode.UP_NOTICE, function(sessionEvent) {
+            console.log('✅ Solace session connected and ready');
+            
+            // Subscribe to inventory alerts topic using proper API
+            try {
+                // Subscribe to the exact topic we're seeing in messages
+                const alertTopic = solace.SolclientFactory.createTopicDestination("store/inventory/alert/universal");
+                solaceSession.subscribe(alertTopic, true, "inventory-alerts", 10000);
+                console.log('🔔 Subscribed to: store/inventory/alert/universal');
+                
+                // Also subscribe to wildcard as backup
+                const alertTopicWild = solace.SolclientFactory.createTopicDestination("store/inventory/alert/>");
+                solaceSession.subscribe(alertTopicWild, true, "inventory-alerts-wild", 10000);
+                console.log('🔔 Subscribed to: store/inventory/alert/>');
+                
+                // Subscribe to organic trends  
+                const trendTopic = solace.SolclientFactory.createTopicDestination("store/trend/organic");
+                solaceSession.subscribe(trendTopic, true, "organic-trends", 10000);
+                console.log('🔔 Subscribed to: store/trend/organic');
+                
+            } catch (error) {
+                console.error('❌ Subscription error:', error);
+            }
+        });
+
+        solaceSession.on(solace.SessionEventCode.MESSAGE, function(message) {
+            try {
+                console.log('📨 Received message from Solace');
+                
+                // Get topic and payload using proper API methods
+                const topic = message.getDestination().getName();
+                const payload = message.getBinaryAttachment();
+                
+                console.log('📨 Topic:', topic);
+                console.log('📨 Payload:', payload);
+                console.log('🔍 payload type:', typeof payload);
+                console.log('🔍 payload constructor:', payload.constructor.name);
+                console.log('🔍 payload length:', payload.length);
+                
+                // Try different ways to get the actual text content
+                let actualPayload;
+                if (typeof payload === 'string') {
+                    actualPayload = payload;
+                } else if (payload.toString) {
+                    actualPayload = payload.toString();
+                } else {
+                    actualPayload = String(payload);
+                }
+                
+                console.log('🔍 actualPayload:', actualPayload);
+                console.log('🔍 actualPayload type:', typeof actualPayload);
+                
+                // Handle inventory alerts - FIX DOUBLE-ENCODED JSON
+                if (topic.startsWith('store/inventory/alert/')) {
+                    console.log('📦 Processing inventory alert - DOUBLE-PARSE FIX');
+                    
+                    try {
+                        // First parse gets the JSON string, second parse gets the object
+                        let firstParse = JSON.parse(actualPayload);
+                        console.log('🔍 First parse type:', typeof firstParse);
+                        
+                        let alertData;
+                        if (typeof firstParse === 'string') {
+                            // It's double-encoded, parse again
+                            alertData = JSON.parse(firstParse);
+                            console.log('🔍 Double-encoded JSON detected, parsed twice');
+                        } else {
+                            // It's normal, use as-is  
+                            alertData = firstParse;
+                        }
+                        
+                        console.log('🔍 Final alertData type:', typeof alertData);
+                        console.log('🔍 alertData.inventory exists:', !!alertData.inventory);
+                        
+                        if (alertData && alertData.inventory && alertData.inventory.plu) {
+                            const inv = alertData.inventory;
+                            
+                            const alert = {
+                                plu: inv.plu,
+                                product_name: inv.product_name,
+                                stock_level: inv.current_stock,
+                                threshold: inv.threshold,
+                                timestamp: new Date().toLocaleTimeString()
+                            };
+                            
+                            console.log('🚀 DOUBLE-PARSE: Alert created!', alert);
+                            alerts.push(alert);
+                            updateAlerts();
+                            console.log('✅ DOUBLE-PARSE: Alert displayed!');
+                            return;
+                        }
+                        
+                    } catch (e) {
+                        console.log('❌ Double-parse failed:', e);
+                    }
+                } else if (topic === 'store/trend/organic') {
+                    // Handle organic trends
+                    try {
+                        const trendsData = JSON.parse(payload);
+                        if (trendsData && (trendsData.organic_count !== undefined || trendsData.conventional_count !== undefined)) {
+                            updateOrganicStats({
+                                organic_count: trendsData.organic_count || organicStats.organic_count,
+                                conventional_count: trendsData.conventional_count || organicStats.conventional_count,
+                                total_scans: (trendsData.organic_count || 0) + (trendsData.conventional_count || 0),
+                                organic_percentage: trendsData.organic_percentage || ((trendsData.organic_count || 0) / Math.max(1, (trendsData.organic_count || 0) + (trendsData.conventional_count || 0))) * 100
+                            });
+                        }
+                    } catch (e) {
+                        console.log('❌ Failed to parse trends JSON:', e);
+                    }
+                }
+                
+            } catch (error) {
+                console.error('❌ Error processing message:', error);
+            }
+        });
+
+        solaceSession.on(solace.SessionEventCode.CONNECT_FAILED_ERROR, function(sessionEvent) {
+            console.error('❌ Solace connection failed:', sessionEvent);
+        });
+
+        solaceSession.on(solace.SessionEventCode.DISCONNECTED, function(sessionEvent) {
+            console.log('🔴 Solace session disconnected:', sessionEvent);
+        });
+
+        solaceSession.on(solace.SessionEventCode.SUBSCRIPTION_OK, function(sessionEvent) {
+            console.log('✅ Subscription successful:', sessionEvent.correlationKey);
+        });
+
+        solaceSession.on(solace.SessionEventCode.SUBSCRIPTION_ERROR, function(sessionEvent) {
+            console.error('❌ Subscription failed:', sessionEvent.reason);
+        });
+
+        // Connect the session
+        console.log('🔄 Connecting to Solace...');
+        solaceSession.connect();
+
+    } catch (error) {
+        console.error('❌ Failed to initialize Solace:', error);
+        // Fall back to polling 
+        setInterval(pollForRecentAlerts, 5000);
+    }
+}
+
+// Simple polling fallback when Solace SDK unavailable
+function pollForRecentAlerts() {
+    console.log('🔄 Polling fallback active (Solace SDK unavailable)');
+    
+    // This would call your backend API instead of direct Solace REST
+    // Example: fetch('/api/recent-alerts').then(r => r.json()).then(alerts => ...)
+    
+    // For now, just indicate polling is running
+    // In production, you'd implement a backend endpoint that:
+    // 1. Subscribes to Solace 
+    // 2. Stores recent alerts in database/cache
+    // 3. Serves them via REST API without CORS issues
+}
 
 function addAlert(alertData) {
     alerts.push(alertData);
     updateAlerts();
 }
-
 function updateAlerts() {
     const container = document.getElementById('alerts-container');
     const countElement = document.getElementById('alert-count');
+    
+    console.log('🎯 updateAlerts called - alerts array length:', alerts.length);
+    console.log('🎯 alerts array contents:', alerts);
+    console.log('🎯 container element:', container);
     
     if (alerts.length === 0) {
         container.innerHTML = '<div class="no-alerts">No alerts - all inventory levels normal</div>';
         countElement.style.display = 'none';
     } else {
-        container.innerHTML = alerts.slice(-3).map(alert => `
+        console.log('🎯 About to render', alerts.length, 'alerts');
+        const alertsHTML = alerts.slice(-3).map(alert => `
             <div class="low-stock-alert">
                 <div style="font-weight: bold; margin-bottom: 8px;">🚨 LOW STOCK ALERT</div>
                 <div><strong>PLU:</strong> ${alert.plu}</div>
@@ -532,15 +1248,23 @@ function updateAlerts() {
                 <div style="margin-top: 8px; opacity: 0.8; font-size: 12px;">${alert.timestamp}</div>
             </div>
         `).join('');
+        
+        console.log('🎯 Generated HTML:', alertsHTML);
+        container.innerHTML = alertsHTML;
         countElement.textContent = alerts.length;
         countElement.style.display = 'block';
+        console.log('🎯 DOM updated, innerHTML now:', container.innerHTML);
     }
 }
+
 
 // Initialize dashboard on page load
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Dashboard initializing...');
     loadHistoricalData();
+    
+    // Initialize Solace connection for real-time alerts
+    initializeSolace();
 });
 </script>
 </body>

@@ -18,71 +18,59 @@ apps:
       namespace: "${NAMESPACE}"
       supports_streaming: false
       agent_name: "inventory_alert_agent"
-      display_name: "Inventory & Organic Trends Agent"
+      display_name: "Inventory Alert Agent"
       deployment:
-        id: "enhanced-inventory-001"
+        id: "purchase-triggered-inventory-001"
       instruction: |
-        You are the Inventory & Organic Trends Agent for the retail demo. You perform dual functions on every scan:
+        You are the Inventory Alert Agent. When you receive a purchase completion event, check stock levels and send alerts if needed.
 
-        **FUNCTION 1: INVENTORY MONITORING**
-        - Extract PLU from the LangGraph response text
-        - Query products table: SELECT stock_level, name FROM products WHERE plu='{extracted_plu}'
-        - If stock_level ≤ 5, publish inventory alert as JSON:
+        **STEP 1: Parse Purchase Event**
+        Extract the PLU and purchase details from the input JSON: {"employee_id": "E001", "plu": "94011", "product_name": "...", "old_stock": 10, "new_stock": 9}
+
+        **STEP 2: Check Current Stock Level**
+        Use demo_sql_query tool: SELECT stock_level, name FROM products WHERE plu = '[extracted_plu]'
+
+        **STEP 3: Determine Alert Status**
+        If stock_level <= 5: alert = true
+        If stock_level > 5: alert = false
+
+        **STEP 4: Return Inventory Alert JSON**
+        Return this exact format:
         {
-          "alert": true,
-          "plu": "{plu}",
-          "product_name": "{name}",
-          "stock_level": {current_level},
-          "timestamp": "{current_timestamp}",
-          "alert_type": "low_stock"
+          "inventory": {
+            "alert": [true/false],
+            "plu": "[extracted_plu]",
+            "product_name": "[product name from DB]",
+            "current_stock": [actual_stock_from_db],
+            "threshold": 5,
+            "message": "[Alert message if alert=true, otherwise 'Stock levels normal']",
+            "timestamp": "{{embed:datetime:iso}}"
+          }
         }
 
-        **FUNCTION 2: ORGANIC TREND TRACKING (REAL-TIME + HISTORICAL)**
-        - Query historical totals from database:
-          SELECT COUNT(*) as organic_total FROM purchase_history WHERE organic=1;
-          SELECT COUNT(*) as conventional_total FROM purchase_history WHERE organic=0;
-        - Determine current scan type: organic if PLU starts with '9', conventional otherwise
-        - Add current scan to historical totals:
-          - If organic scan: organic_count = organic_total + 1, conventional_count = conventional_total
-          - If conventional scan: conventional_count = conventional_total + 1, organic_count = organic_total
-        - Calculate: total_scans = organic_count + conventional_count
-        - Calculate: organic_percentage = (organic_count / total_scans) * 100
-        - Publish organic trends as JSON:
-        {
-          "organic_count": {organic_count},
-          "conventional_count": {conventional_count}, 
-          "total_scans": {total_scans},
-          "organic_percentage": {organic_percentage},
-          "last_scan_type": "{organic|conventional}",
-          "last_plu": "{plu}",
-          "timestamp": "{current_timestamp}"
-        }
+        **Alert Message Examples:**
+        - If alert=true: "⚠️ LOW STOCK ALERT: [product_name] has only [current_stock] units remaining"
+        - If alert=false: "Stock levels normal"
 
-        **RESPONSE FORMAT:**
-        Always return both results in your response:
-        INVENTORY: {inventory_alert_json}
-        ORGANIC_TRENDS: {organic_trends_json}
-
-        This allows the gateway to extract and publish each to separate topics.
-
+        CRITICAL: Only generate alerts when current_stock <= 5
+        CRITICAL: Always query the database for current stock - don't trust the purchase event stock numbers
+        CRITICAL: Return valid JSON format
       model:
         model: "${LLM_SERVICE_GENERAL_MODEL_NAME}"
         api_base: "${LLM_SERVICE_ENDPOINT}"
         api_key: "${LLM_SERVICE_API_KEY}"
       tools:
-        - tool_type: builtin-group
-          group_name: "data_analysis"
         - tool_type: python
           component_module: "sam_sql_database_tool.tools"
           component_base_path: "."
           class_name: "SqlDatabaseTool"
           tool_config:
             tool_name: "demo_sql_query"
-            tool_description: "Query the demo mysql database for inventory and purchase history."
+            tool_description: "Query the demo mysql database for inventory levels."
             connection_string: "mysql+pymysql://admin:admin@host.minikube.internal:3306/demo"
       session_service:
         type: ${PERSISTENCE_TYPE, sql}
-        database_url: ${DATABASE_URL, sqlite:///enhanced_inventory.db}
+        database_url: ${DATABASE_URL, sqlite:///inventory_alert.db}
         default_behavior: PERSISTENT
       artifact_service:
         type: filesystem
@@ -92,16 +80,16 @@ apps:
       enable_embed_resolution: true
       enable_artifact_content_instruction: true
       agent_card:
-        description: "Enhanced agent that monitors inventory levels and tracks real-time organic vs conventional trends with historical data"
+        description: "Monitors inventory levels after purchases and generates real-time low stock alerts"
         defaultInputModes: ["text"]
         defaultOutputModes: ["text"]
         skills:
           - id: "inventory_monitoring"
             name: "Inventory Monitoring"
             description: "Monitor product stock levels and generate low stock alerts"
-          - id: "organic_trend_tracking"
-            name: "Organic Trend Tracking"  
-            description: "Track organic vs conventional scanning patterns with historical context"
+          - id: "purchase_event_processing"
+            name: "Purchase Event Processing"  
+            description: "Process purchase completion events and trigger appropriate alerts"
       agent_card_publishing:
         interval_seconds: 10
       agent_discovery:

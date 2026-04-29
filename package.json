@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "pinia": "^3.0.4",
+    "solclientjs": "^10.18.3",
     "vue": "^3.5.12"
   },
   "devDependencies": {
