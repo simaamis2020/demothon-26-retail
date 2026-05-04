@@ -1,0 +1,191 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FBFD"/>
+      <stop offset="1" stop-color="#EEF6F9"/>
+    </linearGradient>
+    <linearGradient id="meshPanel" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F5FBFD"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#143B54" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .title { font: 700 34px 'Avenir Next', Arial, sans-serif; fill: #123A56; }
+      .section { font: 700 22px 'Avenir Next', Arial, sans-serif; fill: #123A56; }
+      .label { font: 700 14px 'Avenir Next', Arial, sans-serif; fill: #123A56; }
+      .small { font: 500 12px 'Avenir Next', Arial, sans-serif; fill: #5A7487; }
+      .card { fill: #FFFFFF; stroke: #12C48B; stroke-width: 2; }
+      .cardMuted { fill: #FFFFFF; stroke: #C8D8E1; stroke-width: 2; }
+      .meshBox { fill: url(#meshPanel); stroke: #12C48B; stroke-width: 2; }
+      .line { stroke: #123A56; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      .thin { stroke-width: 1.8; }
+      .dashed { stroke-dasharray: 9 8; }
+      .pill { fill: #EAF8F3; stroke: #12C48B; stroke-width: 1.4; }
+      .storePanel { fill: #F9FCFD; stroke: #D3E2EA; stroke-width: 1.5; }
+      .brokerCircle { fill: #12C48B; }
+      .iconFill { fill: #123A56; }
+      .iconStroke { stroke: #123A56; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" orient="auto-start-reverse">
+      <path d="M0 0L12 6L0 12V0Z" fill="#123A56"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="900" rx="28" fill="url(#bg)"/>
+  <rect x="0" y="86" width="1600" height="3" fill="#12C48B"/>
+
+  <text x="70" y="62" class="title">Retail Master Data Distribution Demo with Solace Agent Mesh</text>
+
+  <g transform="translate(1380 42)">
+    <circle cx="18" cy="16" r="12" fill="#12C48B"/>
+    <circle cx="42" cy="16" r="12" fill="#12C48B"/>
+    <circle cx="66" cy="16" r="12" fill="#12C48B"/>
+    <circle cx="42" cy="40" r="12" fill="#12C48B"/>
+    <circle cx="66" cy="40" r="12" fill="#12C48B"/>
+    <circle cx="90" cy="40" r="12" fill="#12C48B" opacity="0.45"/>
+    <circle cx="90" cy="16" r="12" fill="none" stroke="#8EA8B9"/>
+    <circle cx="114" cy="16" r="12" fill="none" stroke="#8EA8B9"/>
+    <circle cx="138" cy="16" r="12" fill="none" stroke="#8EA8B9"/>
+    <circle cx="114" cy="40" r="12" fill="none" stroke="#8EA8B9"/>
+    <circle cx="138" cy="40" r="12" fill="none" stroke="#8EA8B9"/>
+    <circle cx="162" cy="40" r="12" fill="none" stroke="#8EA8B9"/>
+  </g>
+
+  <rect x="300" y="112" width="1210" height="580" rx="18" class="meshBox" filter="url(#shadow)"/>
+  <text x="320" y="144" class="section">Solace Event Mesh</text>
+
+  <g filter="url(#shadow)">
+    <rect x="480" y="168" width="240" height="96" rx="14" class="card"/>
+    <circle cx="520" cy="216" r="18" class="brokerCircle"/>
+    <rect x="509" y="208" width="22" height="16" rx="7" fill="#FFFFFF"/>
+    <text x="554" y="210" class="label">Hub Broker</text>
+    <text x="554" y="232" class="small">Publishes master data updates</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="795" y="168" width="280" height="96" rx="14" class="card"/>
+    <circle cx="835" cy="216" r="18" class="brokerCircle"/>
+    <path d="M825 214h20M835 204v20" class="iconStroke" stroke="#FFFFFF"/>
+    <text x="870" y="208" class="label">Product Cache</text>
+    <text x="870" y="228" class="small">Topic compaction MI</text>
+    <text x="870" y="246" class="small">Latest product state + replay</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1140" y="168" width="250" height="96" rx="14" class="card"/>
+    <circle cx="1180" cy="216" r="18" class="brokerCircle"/>
+    <path d="M1171 217l6 6 12-14" class="iconStroke" stroke="#FFFFFF"/>
+    <text x="1214" y="208" class="label">Replay Status Events</text>
+    <text x="1214" y="228" class="small">`replayStatus` back to the UI</text>
+    <text x="1214" y="246" class="small">Success / failure confirmation</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="370" y="322" width="260" height="118" rx="14" class="card"/>
+    <circle cx="410" cy="381" r="18" class="brokerCircle"/>
+    <path d="M400 377h20M410 367v20" class="iconStroke" stroke="#FFFFFF"/>
+    <text x="445" y="368" class="label">Voice Command Publisher</text>
+    <text x="445" y="390" class="small">Speech-to-text command events</text>
+    <text x="445" y="410" class="small">Published over the same WebSocket session</text>
+    <rect x="446" y="416" width="150" height="18" rx="9" class="pill"/>
+    <text x="458" y="429" class="small">`voice/command/v1/store-assistant`</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="690" y="322" width="320" height="118" rx="14" class="card"/>
+    <circle cx="730" cy="381" r="18" class="brokerCircle"/>
+    <path d="M720 377h20M730 367v20" class="iconStroke" stroke="#FFFFFF"/>
+    <text x="766" y="368" class="label">Agent Mesh</text>
+    <text x="766" y="390" class="small">Distribution Agent · Pricing Agent · Cache Agent</text>
+    <text x="766" y="410" class="small">Interprets routed events and replay outcomes</text>
+    <rect x="766" y="416" width="208" height="18" rx="9" class="pill"/>
+    <text x="778" y="429" class="small">Live insights for operations and demo flow</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1070" y="322" width="310" height="118" rx="14" class="card"/>
+    <circle cx="1110" cy="381" r="18" class="brokerCircle"/>
+    <path d="M1101 377h18M1110 368v18" class="iconStroke" stroke="#FFFFFF"/>
+    <text x="1146" y="368" class="label">Live Operations Dashboard</text>
+    <text x="1146" y="390" class="small">Subscriptions, KPIs, toasts and routing view</text>
+    <text x="1146" y="410" class="small">Shows only events that actually arrive</text>
+    <rect x="1146" y="416" width="190" height="18" rx="9" class="pill"/>
+    <text x="1158" y="429" class="small">Editable store subscriptions in the UI</text>
+  </g>
+
+  <rect x="360" y="496" width="1080" height="150" rx="18" class="storePanel"/>
+  <text x="382" y="528" class="section">Store Edge Layer</text>
+
+  <g filter="url(#shadow)">
+    <rect x="390" y="548" width="220" height="74" rx="14" class="cardMuted"/>
+    <circle cx="428" cy="585" r="16" class="brokerCircle"/>
+    <text x="458" y="580" class="label">Germany Store 101</text>
+    <text x="458" y="600" class="small">Local edge broker + POS / ESL</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="650" y="548" width="220" height="74" rx="14" class="cardMuted"/>
+    <circle cx="688" cy="585" r="16" class="brokerCircle"/>
+    <text x="718" y="580" class="label">Canada Store 102</text>
+    <text x="718" y="600" class="small">Local edge broker + POS / ESL</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="910" y="548" width="220" height="74" rx="14" class="cardMuted"/>
+    <circle cx="948" cy="585" r="16" class="brokerCircle"/>
+    <text x="978" y="580" class="label">France Store 103</text>
+    <text x="978" y="600" class="small">Local edge broker + POS / ESL</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1170" y="548" width="220" height="74" rx="14" class="cardMuted"/>
+    <circle cx="1208" cy="585" r="16" class="brokerCircle"/>
+    <text x="1238" y="580" class="label">Australia Store 104</text>
+    <text x="1238" y="600" class="small">Local edge broker + POS / ESL</text>
+  </g>
+
+  <path d="M720 216H795" class="line" marker-end="url(#arrow)"/>
+  <path d="M1075 216H1140" class="line" marker-end="url(#arrow)"/>
+  <path d="M600 322V264H600" class="line" marker-end="url(#arrow)"/>
+  <path d="M850 322V264" class="line" marker-end="url(#arrow)"/>
+  <path d="M1225 322V264H1215" class="line" marker-end="url(#arrow)"/>
+
+  <path d="M600 216V496" class="line dashed" marker-end="url(#arrow)"/>
+  <path d="M935 216V496" class="line dashed" marker-end="url(#arrow)"/>
+
+  <path d="M600 520H500V548" class="line" marker-end="url(#arrow)"/>
+  <path d="M720 520H760V548" class="line" marker-end="url(#arrow)"/>
+  <path d="M935 520H1020V548" class="line" marker-end="url(#arrow)"/>
+  <path d="M935 520H1280V548" class="line" marker-end="url(#arrow)"/>
+
+  <path d="M500 622V662H600" class="line thin" marker-end="url(#arrow)"/>
+  <path d="M760 622V662H600" class="line thin" marker-end="url(#arrow)"/>
+  <path d="M1020 622V662H600" class="line thin" marker-end="url(#arrow)"/>
+  <path d="M1280 622V662H600" class="line thin" marker-end="url(#arrow)"/>
+  <text x="618" y="676" class="small">POS and local consumers publish events back to the hub</text>
+
+  <g filter="url(#shadow)">
+    <rect x="70" y="206" width="150" height="84" rx="14" class="cardMuted"/>
+    <circle cx="110" cy="248" r="20" fill="#123A56"/>
+    <path d="M100 247h20M110 237v20" class="iconStroke" stroke="#FFFFFF"/>
+    <text x="154" y="238" class="label">Retail Source</text>
+    <text x="154" y="258" class="small">ERP / MDM / pricing</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="70" y="330" width="150" height="84" rx="14" class="cardMuted"/>
+    <circle cx="110" cy="372" r="20" fill="#123A56"/>
+    <path d="M101 372h18M110 363v18" class="iconStroke" stroke="#FFFFFF"/>
+    <text x="154" y="362" class="label">Demo UI</text>
+    <text x="154" y="382" class="small">Connect / subscribe / publish</text>
+  </g>
+
+  <path d="M220 248H350V216H480" class="line" marker-end="url(#arrow)"/>
+  <path d="M220 372H330V381H370" class="line" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect x="74" y="804" width="128" height="24" rx="12" fill="#FFFFFF" stroke="#12C48B"/>
+    <text x="92" y="820" class="small">Demo architecture</text>
+  </g>
+
+  <text x="1410" y="834" style="font:700 28px 'Avenir Next', Arial, sans-serif; fill:#12C48B;">solace.</text>
+</svg>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solace Hub to Store Event Stream</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <section class="connect-panel">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <div>
+          <p>Retail Edge Distribution</p>
+          <h1>Event Mesh to Stores</h1>
+        </div>
+      </div>
+
+      <div class="connection-card">
+        <div class="connect-options-title">Connection</div>
+        <div class="option-row">
+          <label>Protocol
+            <select id="protocol">
+              <option value="smf-ws">SMF WS</option>
+            </select>
+          </label>
+          <label class="tls-toggle">TLS/SSL
+            <button id="tlsToggle" type="button" class="toggle is-on" aria-pressed="true">On</button>
+          </label>
+          <label class="demo-toggle">Demo Mode
+            <button id="demoToggle" type="button" class="toggle" aria-pressed="false">Off</button>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <label>Host
+          <input id="host" value="YOUR_BROKER_HOST" autocomplete="off" />
+        </label>
+        <label>Port
+          <input id="port" value="443" inputmode="numeric" autocomplete="off" />
+        </label>
+        <label>Message VPN
+          <input id="vpn" value="default" autocomplete="off" />
+        </label>
+        <label>Username
+          <input id="username" value="" autocomplete="username" />
+        </label>
+        <label>Password
+          <input id="password" type="password" value="" autocomplete="current-password" />
+        </label>
+        <label class="wide">Subscription Topic
+          <input id="topic" value="acmeretail/mdm/product/*/*/*/>" autocomplete="off" />
+        </label>
+        <div class="url-preview wide">
+          <span>Broker URL</span>
+          <code id="urlPreview">wss://YOUR_BROKER_HOST:443</code>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="connectBtn">Connect</button>
+        <button id="subscribeBtn" disabled>Subscribe</button>
+        <button id="disconnectBtn" class="secondary" disabled>Disconnect</button>
+      </div>
+
+      <div class="status" id="status">Not connected. Enter broker details to begin.</div>
+      <div class="hint">Solace wildcards supported: <code>*</code> for one level, <code>&gt;</code> for remaining levels.</div>
+
+      <div class="voice-card">
+        <div class="voice-card-header">
+          <div>
+            <p>Voice Commands</p>
+            <h3>Speech to Solace Event</h3>
+          </div>
+          <span class="voice-dot" id="voiceDot" aria-hidden="true"></span>
+        </div>
+
+        <label>Command Topic
+          <input id="voiceTopic" value="acme/retail/voice/command/v1/store-assistant" autocomplete="off" />
+        </label>
+
+        <label>Transcript
+          <textarea id="voiceTranscript" rows="5" placeholder="Click Record and speak. The transcript will appear here."></textarea>
+        </label>
+
+        <div class="voice-actions">
+          <button id="startVoiceBtn" type="button">Record</button>
+          <button id="stopVoiceBtn" type="button" class="secondary" disabled>Stop</button>
+          <button id="publishVoiceBtn" type="button" class="secondary">Send Event</button>
+        </div>
+
+        <div class="voice-status" id="voiceStatus">Browser speech recognition standby.</div>
+      </div>
+    </section>
+
+    <section class="visual-panel">
+      <header>
+        <div>
+          <p>Retail Master Data Mesh</p>
+          <h2>Real-Time Master Data Distribution</h2>
+        </div>
+        <div class="metric-strip">
+          <span><strong id="eventCount">0</strong> events</span>
+          <span><strong id="lastStore">-</strong> last store</span>
+        </div>
+      </header>
+
+      <div class="stage" id="stage">
+        <svg class="routes" viewBox="0 0 1000 620" preserveAspectRatio="none" aria-hidden="true">
+          <path data-route="DE-101" d="M500 310 C370 245 255 180 150 120" />
+          <path data-route="CA-102" d="M500 310 C640 230 745 170 850 120" />
+          <path data-route="FR-103" d="M500 310 C635 395 750 455 850 505" />
+          <path data-route="AU-104" d="M500 310 C365 390 250 455 150 505" />
+          <path data-route="PRODUCT-CACHE" d="M500 310 C500 235 500 172 500 112" />
+        </svg>
+        <div class="route-subscriptions" id="routeSubscriptions"></div>
+
+        <div class="hub">
+          <span>Event</span>
+          <strong>Mesh</strong>
+        </div>
+
+        <button class="store store-ham" data-store="DE-101">
+          <span class="store-broker-icon" aria-hidden="true"></span>
+          <span>DE · 101</span>
+          <strong>Germany</strong>
+        </button>
+        <button class="store store-ber" data-store="CA-102">
+          <span class="store-broker-icon" aria-hidden="true"></span>
+          <span>CA · 102</span>
+          <strong>Canada</strong>
+        </button>
+        <button class="store store-muc" data-store="FR-103">
+          <span class="store-broker-icon" aria-hidden="true"></span>
+          <span>FR · 103</span>
+          <strong>France</strong>
+        </button>
+        <button class="store store-cgn" data-store="AU-104">
+          <span class="store-broker-icon" aria-hidden="true"></span>
+          <span>AU · 104</span>
+          <strong>Australia</strong>
+        </button>
+
+        <div class="cache-node" data-cache="PRODUCT-CACHE">
+          <span>Topic Compaction</span>
+          <strong>Master Data Distribution MI</strong>
+          <em>Receives each subscribed event</em>
+        </div>
+
+        <div class="store-topology" id="storeTopology" hidden></div>
+      </div>
+    </section>
+
+    <section class="event-panel">
+      <header>
+        <p>Live Operations</p>
+        <button id="clearBtn" class="secondary">Reset</button>
+      </header>
+
+      <div class="ops-grid">
+        <article class="ops-card stat-card">
+          <span>Master Data Events</span>
+          <strong id="masterDataCount">0</strong>
+        </article>
+        <article class="ops-card stat-card">
+          <span>Price Updates</span>
+          <strong id="priceUpdateCount">0</strong>
+        </article>
+        <article class="ops-card stat-card">
+          <span>Stores Reached</span>
+          <strong id="storesReachedCount">0</strong>
+        </article>
+        <article class="ops-card stat-card">
+          <span>Cache Updates</span>
+          <strong id="cacheUpdateCount">0</strong>
+        </article>
+      </div>
+
+      <article class="ops-card last-action-card">
+          <span>Latest Event</span>
+        <strong id="lastActionTitle">No live traffic yet</strong>
+        <p id="lastActionBody">Connect to a broker or use UI demo mode to watch master data updates move through the retail mesh.</p>
+      </article>
+
+      <article class="ops-card insight-card">
+        <div class="insight-head">
+          <span>Agent Mesh Insights</span>
+          <strong id="insightStatus">Observing</strong>
+        </div>
+        <ul id="insightList" class="insight-list">
+          <li>
+            <strong>Distribution Agent</strong>
+            <p>Waiting for the next routed event.</p>
+          </li>
+          <li>
+            <strong>Pricing Agent</strong>
+            <p>Watching for price changes across the store mesh.</p>
+          </li>
+          <li>
+            <strong>Cache Agent</strong>
+            <p>Standing by for the next master data distribution refresh.</p>
+          </li>
+        </ul>
+      </article>
+    </section>
+  </main>
+
+  <script src="lib/solclient-full.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
