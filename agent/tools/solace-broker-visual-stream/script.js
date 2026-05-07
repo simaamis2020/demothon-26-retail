@@ -6,9 +6,9 @@ const stores = [
     countryName: 'Germany',
     name: 'Store 101',
     subscriptions: [
-      'acmeretail/mdm/product/*/*/*/>',
-      'acmeretail/mdm/product/*/DE/*/>',
-      'acmeretail/mdm/product/*/DE/101/>'
+      'acmeretail/mdm/*/*/storein/all/all/>',
+      'acmeretail/mdm/*/*/storein/de/*/>',
+      'acmeretail/mdm/*/*/storein/de/101/>'
     ]
   },
   {
@@ -18,9 +18,9 @@ const stores = [
     countryName: 'Canada',
     name: 'Store 102',
     subscriptions: [
-      'acmeretail/mdm/product/*/*/*/>',
-      'acmeretail/mdm/product/*/CA/*/>',
-      'acmeretail/mdm/product/*/CA/102/>'
+      'acmeretail/mdm/*/*/storein/all/all/>',
+      'acmeretail/mdm/*/*/storein/ca/*/>',
+      'acmeretail/mdm/*/*/storein/ca/102/>'
     ]
   },
   {
@@ -30,9 +30,9 @@ const stores = [
     countryName: 'France',
     name: 'Store 103',
     subscriptions: [
-      'acmeretail/mdm/product/*/*/*/>',
-      'acmeretail/mdm/product/*/FR/*/>',
-      'acmeretail/mdm/product/*/FR/103/>'
+      'acmeretail/mdm/*/*/storein/all/all/>',
+      'acmeretail/mdm/*/*/storein/fr/*/>',
+      'acmeretail/mdm/*/*/storein/fr/103/>'
     ]
   },
   {
@@ -42,15 +42,18 @@ const stores = [
     countryName: 'Australia',
     name: 'Store 104',
     subscriptions: [
-      'acmeretail/mdm/product/*/*/*/>',
-      'acmeretail/mdm/product/*/AU/*/>',
-      'acmeretail/mdm/product/*/AU/104/>'
+      'acmeretail/mdm/*/*/storein/all/all/>',
+      'acmeretail/mdm/*/*/storein/au/*/>',
+      'acmeretail/mdm/*/*/storein/au/104/>'
     ]
   }
 ];
-const cacheClient = { id: 'PRODUCT-CACHE', name: 'Master Data Distribution MI', subscription: 'acmeretail/mdm/product/*/*/*/>' };
+const cacheClient = { id: 'PRODUCT-CACHE', name: 'Master Data Distribution MI', subscription: 'acmeretail/mdm/*/*/storein/*/>' };
 const PRODUCT_CACHE_STATUS_SUBSCRIPTION = 'acmeretail/productCache/replayStatus/v1/>';
 const STORE_SUBSCRIPTION_LABELS = ['all/all', 'country/all', 'country/storeId'];
+const STORE_DASHBOARD_URL = 'http://35.173.254.209/dashboard.html';
+const SAVED_CONNECTIONS_KEY = 'solaceBrokerSavedConnections';
+const LAST_CONNECTION_KEY = 'solaceBrokerLastConnection';
 
 const els = {
   protocol: document.getElementById('protocol'),
@@ -62,17 +65,23 @@ const els = {
   username: document.getElementById('username'),
   password: document.getElementById('password'),
   topic: document.getElementById('topic'),
+  savedConnectionSelect: document.getElementById('savedConnectionSelect'),
+  saveConnectionBtn: document.getElementById('saveConnectionBtn'),
+  deleteConnectionBtn: document.getElementById('deleteConnectionBtn'),
   urlPreview: document.getElementById('urlPreview'),
   connectBtn: document.getElementById('connectBtn'),
   subscribeBtn: document.getElementById('subscribeBtn'),
   disconnectBtn: document.getElementById('disconnectBtn'),
   clearBtn: document.getElementById('clearBtn'),
   status: document.getElementById('status'),
-  voiceDot: document.getElementById('voiceDot'),
   voiceTopic: document.getElementById('voiceTopic'),
   voiceTranscript: document.getElementById('voiceTranscript'),
-  startVoiceBtn: document.getElementById('startVoiceBtn'),
-  stopVoiceBtn: document.getElementById('stopVoiceBtn'),
+  replayCommand: document.getElementById('replayCommand'),
+  replayPattern: document.getElementById('replayPattern'),
+  replayRateLimit: document.getElementById('replayRateLimit'),
+  replayDestinationSuffix: document.getElementById('replayDestinationSuffix'),
+  replayCorrelationId: document.getElementById('replayCorrelationId'),
+  replayIncludeHeaders: document.getElementById('replayIncludeHeaders'),
   publishVoiceBtn: document.getElementById('publishVoiceBtn'),
   voiceStatus: document.getElementById('voiceStatus'),
   routeSubscriptions: document.getElementById('routeSubscriptions'),
@@ -97,9 +106,6 @@ let eventCount = 0;
 let roundRobinIndex = 0;
 let useTls = true;
 let selectedStoreId = null;
-let recognition = null;
-let recognitionActive = false;
-let speechSupported = false;
 let demoMode = false;
 let demoInterval = null;
 let demoSequence = 0;
@@ -116,7 +122,7 @@ function storeLabel(store) {
 }
 
 function storeKeyFromParts(country, storeId) {
-  return country && storeId ? `${country}-${storeId}` : '';
+  return country && storeId ? `${String(country).toUpperCase()}-${storeId}` : '';
 }
 
 function findStoreByKey(key) {
@@ -126,8 +132,9 @@ function findStoreByKey(key) {
 function resolveStoreContext(topic, payload = '') {
   const parsed = parseJsonPayload(payload);
   const topicLevels = topic.split('/').filter(Boolean);
-  const country = (parsed && (parsed.country || parsed.city || parsed.location)) || topicLevels[4] || '';
-  const storeId = (parsed && String(parsed.storeId || '')) || topicLevels[5] || '';
+  const markerIndex = topicLevels.indexOf('storein');
+  const country = (parsed && (parsed.country || parsed.city || parsed.location)) || (markerIndex >= 0 ? topicLevels[markerIndex + 1] || '' : '');
+  const storeId = (parsed && String(parsed.storeId || '')) || (markerIndex >= 0 ? topicLevels[markerIndex + 2] || '' : '');
   const key = storeKeyFromParts(country, storeId);
   return { country, storeId, key };
 }
@@ -153,6 +160,122 @@ function setStatus(text, type = '') {
 function setVoiceStatus(text, type = '') {
   els.voiceStatus.textContent = text;
   els.voiceStatus.className = `voice-status ${type}`.trim();
+}
+
+function readSavedConnections() {
+  try {
+    return JSON.parse(window.localStorage.getItem(SAVED_CONNECTIONS_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function writeSavedConnections(connections) {
+  window.localStorage.setItem(SAVED_CONNECTIONS_KEY, JSON.stringify(connections));
+}
+
+function buildConnectionProfile() {
+  return {
+    id: `${els.host.value.trim()}|${els.vpn.value.trim()}|${els.username.value.trim()}`.toLowerCase(),
+    host: els.host.value.trim(),
+    port: els.port.value.trim(),
+    vpn: els.vpn.value.trim(),
+    username: els.username.value.trim(),
+    useTls
+  };
+}
+
+function connectionProfileLabel(profile) {
+  const userPart = profile.username ? ` · ${profile.username}` : '';
+  return `${profile.host} · ${profile.vpn}${userPart}`;
+}
+
+function renderSavedConnections(selectedId = '') {
+  const connections = readSavedConnections();
+  els.savedConnectionSelect.innerHTML = `
+    <option value="">Select a saved connection</option>
+    ${connections.map((profile) => `<option value="${escapeHtml(profile.id)}">${escapeHtml(connectionProfileLabel(profile))}</option>`).join('')}
+  `;
+  if (selectedId) {
+    els.savedConnectionSelect.value = selectedId;
+  }
+}
+
+function applyConnectionProfile(profile) {
+  els.host.value = profile.host || '';
+  els.port.value = profile.port || (profile.useTls ? '443' : '80');
+  els.vpn.value = profile.vpn || '';
+  els.username.value = profile.username || '';
+  els.password.value = '';
+  if (useTls !== Boolean(profile.useTls)) {
+    toggleTls();
+  } else {
+    updateUrlPreview();
+  }
+}
+
+function saveCurrentConnection() {
+  const profile = buildConnectionProfile();
+  if (!profile.host || !profile.vpn) {
+    setStatus('Host and Message VPN are required before saving a connection.', 'error');
+    return;
+  }
+  const connections = readSavedConnections().filter((entry) => entry.id !== profile.id);
+  connections.unshift(profile);
+  writeSavedConnections(connections.slice(0, 12));
+  window.localStorage.setItem(LAST_CONNECTION_KEY, profile.id);
+  renderSavedConnections(profile.id);
+  setStatus(`Saved connection ${connectionProfileLabel(profile)} locally in this browser.`, 'ok');
+}
+
+function deleteSavedConnection() {
+  const selectedId = els.savedConnectionSelect.value;
+  if (!selectedId) {
+    setStatus('Choose a saved connection before deleting it.', 'error');
+    return;
+  }
+  const connections = readSavedConnections().filter((entry) => entry.id !== selectedId);
+  writeSavedConnections(connections);
+  if (window.localStorage.getItem(LAST_CONNECTION_KEY) === selectedId) {
+    window.localStorage.removeItem(LAST_CONNECTION_KEY);
+  }
+  renderSavedConnections();
+  setStatus('Saved connection removed from this browser.', 'ok');
+}
+
+function restoreLastConnection() {
+  const connections = readSavedConnections();
+  const lastId = window.localStorage.getItem(LAST_CONNECTION_KEY) || '';
+  renderSavedConnections(lastId);
+  if (!lastId) return;
+  const match = connections.find((entry) => entry.id === lastId);
+  if (!match) return;
+  applyConnectionProfile(match);
+}
+
+function buildReplayPayload() {
+  const command = els.replayCommand.value.trim();
+  const pattern = els.replayPattern.value.trim();
+  const options = {};
+
+  if (els.replayRateLimit.value.trim()) {
+    options.rateLimit = Number.parseInt(els.replayRateLimit.value.trim(), 10);
+  }
+  if (els.replayDestinationSuffix.value.trim()) {
+    options.destinationSuffix = els.replayDestinationSuffix.value.trim();
+  }
+  if (els.replayCorrelationId.value.trim()) {
+    options.correlationId = els.replayCorrelationId.value.trim();
+  }
+  options.includeOriginalHeaders = els.replayIncludeHeaders.value === 'true';
+
+  const payload = { command, pattern };
+  if (Object.keys(options).length) payload.options = options;
+  return payload;
+}
+
+function refreshReplayPreview() {
+  els.voiceTranscript.value = JSON.stringify(buildReplayPayload(), null, 2);
 }
 
 function setDemoMode(active) {
@@ -199,9 +322,10 @@ function buildConsumeSummary(topic, payload) {
     const formattedStock = formatValue(stockValue);
     return formattedStock ? `Stock now at ${formattedStock}` : 'Stock event consumed';
   }
-  if (/\/voice\//i.test(topic)) {
-    const trimmed = trimPayload(payload).slice(0, 42);
-    return trimmed ? `Voice event: ${trimmed}` : 'Voice event consumed';
+  if (/\/command\//i.test(topic)) {
+    const command = parsed && parsed.command ? parsed.command : 'command';
+    const pattern = parsed && parsed.pattern ? String(parsed.pattern) : '';
+    return pattern ? `${command.replaceAll('_', ' ')} for ${pattern}` : `${command.replaceAll('_', ' ')} requested`;
   }
 
   const levels = topic.split('/').filter(Boolean);
@@ -235,10 +359,12 @@ function buildLastAction(topic, payload, matchedStores, cacheMatched) {
     };
   }
 
-  if (/\/voice\//i.test(topic)) {
+  if (/\/command\//i.test(topic)) {
+    const command = parsed && parsed.command ? String(parsed.command).replaceAll('_', ' ') : 'replay command';
+    const pattern = parsed && parsed.pattern ? String(parsed.pattern) : 'the selected pattern';
     return {
-      title: 'Voice command published',
-      body: `Sent through the same Solace session and routed to ${storeNames}.`
+      title: `${capitalize(command.toLowerCase())} published`,
+      body: `Triggered for ${pattern}. Sent through the same Solace session${matchedStores.length ? ` and routed to ${storeNames}` : ''}.`
     };
   }
 
@@ -308,6 +434,54 @@ function showStoreToast(storeId, title, message, tone = 'default') {
   window.setTimeout(() => toast.remove(), 2600);
 }
 
+function showNodeToast(nodeSelector, toastKey, title, message, tone = 'default') {
+  const nodeEl = els.stage.querySelector(nodeSelector);
+  if (!nodeEl) return;
+
+  const previous = els.stage.querySelector(`.consume-toast[data-node-toast="${toastKey}"]`);
+  if (previous) previous.remove();
+
+  const stageRect = els.stage.getBoundingClientRect();
+  const nodeRect = nodeEl.getBoundingClientRect();
+  const toast = document.createElement('div');
+  toast.className = `consume-toast ${tone}`.trim();
+  toast.dataset.nodeToast = toastKey;
+  toast.style.left = `${nodeRect.left - stageRect.left + (nodeRect.width / 2)}px`;
+  toast.style.top = `${nodeRect.top - stageRect.top - 16}px`;
+  toast.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(message)}</span>`;
+  els.stage.appendChild(toast);
+
+  window.setTimeout(() => toast.remove(), 3000);
+}
+
+function visualizeReplayCommand(topic, payload) {
+  const parsed = parseJsonPayload(payload) || {};
+  const command = parsed.command ? String(parsed.command).replaceAll('_', ' ') : 'Replay command';
+  const pattern = parsed.pattern ? String(parsed.pattern) : 'no pattern specified';
+  const destinationSuffix = parsed.options && parsed.options.destinationSuffix ? ` → ${parsed.options.destinationSuffix}` : '';
+  const summary = `${pattern}${destinationSuffix}`;
+
+  animateToProductCache();
+  showNodeToast('[data-cache="PRODUCT-CACHE"]', 'replay-command', 'Replay triggered', `${command} for ${summary}`, 'success');
+  els.lastActionTitle.textContent = `${capitalize(command.toLowerCase())} triggered`;
+  els.lastActionBody.textContent = `Replay requested for ${pattern}${destinationSuffix}. Master Data Distribution MI is preparing the replay flow.`;
+  els.insightStatus.textContent = 'Triggered';
+  els.insightList.innerHTML = `
+    <li>
+      <strong>Distribution Agent</strong>
+      <p>${escapeHtml(`Replay request sent for ${pattern}. Matching store subscriptions will receive the compacted state.`)}</p>
+    </li>
+    <li>
+      <strong>Pricing Agent</strong>
+      <p>${escapeHtml(`Replay command ${command} was triggered to refresh the selected master data scope.`)}</p>
+    </li>
+    <li>
+      <strong>Cache Agent</strong>
+      <p>${escapeHtml(`Master Data Distribution MI received the replay trigger for ${pattern}${destinationSuffix}.`)}</p>
+    </li>
+  `;
+}
+
 function handleProductCacheStatus(topic, payload) {
   const storeId = resolveStoreIdFromStatus(topic, payload);
   const message = buildReplayStatusMessage(topic, payload, storeId || 'target store');
@@ -354,7 +528,7 @@ function scheduleDemoReplayStatus(commandTopic, commandPayload) {
   const store = findStoreByKey(storeKey) || stores[0];
   const statusTopic = `acmeretail/productCache/replayStatus/v1/${store.country}/${store.id}`;
   const statusPayload = JSON.stringify({
-    country: store.country,
+    country: store.country.toLowerCase(),
     storeId: store.id,
     status: 'SUCCESS',
     action: 'REPLAY_PRICES',
@@ -444,27 +618,27 @@ function handleIncomingEvent(topic, payload) {
 function getDemoEvents() {
   return [
     {
-      topic: 'acmeretail/mdm/product/price-update/DE/101/SKU-48291',
-      payload: JSON.stringify({ country: 'DE', storeId: '101', sku: 'SKU-48291', price: 3.49, currency: 'EUR' })
+      topic: 'acmeretail/mdm/price/updated/storein/de/101/SKU-48291',
+      payload: JSON.stringify({ country: 'de', storeId: '101', sku: 'SKU-48291', price: 3.49, currency: 'EUR' })
     },
     {
-      topic: 'acmeretail/mdm/product/stock-low/CA/102/SKU-77102',
-      payload: JSON.stringify({ country: 'CA', storeId: '102', sku: 'SKU-77102', stock: 8, currency: 'USD' })
+      topic: 'acmeretail/mdm/product/updated/storein/ca/102/SKU-77102',
+      payload: JSON.stringify({ country: 'ca', storeId: '102', sku: 'SKU-77102', stock: 8, currency: 'USD' })
     },
     {
-      topic: 'acmeretail/mdm/product/price-update/FR/103/SKU-11802',
-      payload: JSON.stringify({ country: 'FR', storeId: '103', sku: 'SKU-11802', price: 1.99, currency: 'EUR' })
+      topic: 'acmeretail/mdm/price/updated/storein/fr/103/SKU-11802',
+      payload: JSON.stringify({ country: 'fr', storeId: '103', sku: 'SKU-11802', price: 1.99, currency: 'EUR' })
     },
     {
-      topic: 'acmeretail/mdm/product/stock-replenished/AU/104/SKU-66119',
-      payload: JSON.stringify({ country: 'AU', storeId: '104', sku: 'SKU-66119', stock: 42, currency: 'USD' })
+      topic: 'acmeretail/mdm/product/updated/storein/au/104/SKU-66119',
+      payload: JSON.stringify({ country: 'au', storeId: '104', sku: 'SKU-66119', stock: 42, currency: 'USD' })
     }
   ];
 }
 
 function emitDemoEvent() {
   const events = getDemoEvents();
-  const activeSubscription = subscribedTopic || els.topic.value.trim() || 'acmeretail/mdm/product/*/*/*/>';
+  const activeSubscription = subscribedTopic || els.topic.value.trim() || 'acmeretail/mdm/*/*/storein/*/>';
 
   for (let offset = 0; offset < events.length; offset += 1) {
     const candidate = events[(demoSequence + offset) % events.length];
@@ -486,113 +660,39 @@ function startDemoStream() {
   demoInterval = window.setInterval(emitDemoEvent, 2800);
 }
 
-function setRecordingState(active) {
-  recognitionActive = active;
-  els.voiceDot.classList.toggle('recording', active);
-  els.startVoiceBtn.disabled = active || !speechSupported;
-  els.stopVoiceBtn.disabled = !active;
-}
-
-function initSpeechRecognition() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    setVoiceStatus('Speech recognition is not supported in this browser. You can still type text and publish it.', 'error');
-    els.startVoiceBtn.disabled = true;
-    els.stopVoiceBtn.disabled = true;
-    return;
-  }
-
-  recognition = new SpeechRecognition();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = 'en-US';
-  speechSupported = true;
-  setVoiceStatus('Browser speech recognition standby.', '');
-
-  recognition.addEventListener('start', () => {
-    setRecordingState(true);
-    setVoiceStatus('Recording... speak now.', 'ok');
-  });
-
-  recognition.addEventListener('end', () => {
-    setRecordingState(false);
-    if (!els.voiceTranscript.value.trim()) {
-      setVoiceStatus('Recording stopped. No transcript yet.', '');
-      return;
-    }
-    setVoiceStatus('Transcript ready. Publish it as a Solace event when you want.', 'ok');
-  });
-
-  recognition.addEventListener('error', (event) => {
-    setRecordingState(false);
-    const errorLabel = event.error ? String(event.error).replaceAll('-', ' ') : 'unknown error';
-    setVoiceStatus(`Speech recognition error: ${errorLabel}.`, 'error');
-  });
-
-  recognition.addEventListener('result', (event) => {
-    const transcript = Array.from(event.results)
-      .map((result) => result[0] && result[0].transcript ? result[0].transcript : '')
-      .join(' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    els.voiceTranscript.value = transcript;
-    if (transcript) {
-      setVoiceStatus('Transcript updated live. Stop recording or publish whenever you are ready.', 'ok');
-    }
-  });
-}
-
-function startVoiceRecording() {
-  if (!speechSupported || !recognition) {
-    setVoiceStatus('Speech recognition is unavailable in this browser.', 'error');
-    return;
-  }
-  if (recognitionActive) return;
-
-  try {
-    recognition.start();
-  } catch (error) {
-    setVoiceStatus(`Unable to start recording: ${error.message}`, 'error');
-  }
-}
-
-function stopVoiceRecording() {
-  if (!recognition || !recognitionActive) return;
-  recognition.stop();
-}
-
 function publishVoiceTranscript() {
   const topic = els.voiceTopic.value.trim();
-  const transcript = els.voiceTranscript.value.trim();
+  const payload = buildReplayPayload();
+  const serializedPayload = JSON.stringify(payload);
 
   if (!session) {
-    setVoiceStatus('Connect to the broker first. Then we can publish the transcript.', 'error');
+    setVoiceStatus('Connect to the broker first. Then we can publish the replay request.', 'error');
     return;
   }
   if (!topic) {
-    setVoiceStatus('Publish topic is required.', 'error');
+    setVoiceStatus('Command topic is required.', 'error');
     return;
   }
-  if (!transcript) {
-    setVoiceStatus('Transcript is empty. Record something or type text first.', 'error');
+  if (!payload.command || !payload.pattern) {
+    setVoiceStatus('Command and pattern are required.', 'error');
     return;
   }
 
   try {
+    visualizeReplayCommand(topic, serializedPayload);
     if (session.isDemoSession) {
-      handleIncomingEvent(topic, transcript);
-      scheduleDemoReplayStatus(topic, transcript);
-      setVoiceStatus(`Published transcript to ${topic} in UI demo mode`, 'ok');
+      handleIncomingEvent(topic, serializedPayload);
+      scheduleDemoReplayStatus(topic, serializedPayload);
+      setVoiceStatus(`Published replay request to ${topic} in UI demo mode`, 'ok');
       return;
     }
 
     const message = solace.SolclientFactory.createMessage();
     message.setDestination(solace.SolclientFactory.createTopicDestination(topic));
-    message.setBinaryAttachment(transcript);
+    message.setBinaryAttachment(serializedPayload);
     message.setDeliveryMode(solace.MessageDeliveryModeType.DIRECT);
     session.send(message);
-    setVoiceStatus(`Published transcript to ${topic}`, 'ok');
+    setVoiceStatus(`Published replay request to ${topic}`, 'ok');
   } catch (error) {
     setVoiceStatus(`Publish failed: ${error.message}`, 'error');
   }
@@ -638,10 +738,11 @@ function routeClassName(targetId) {
 
 function summarizeSubscription(subscription) {
   const levels = subscription.split('/').filter(Boolean);
-  if (levels.length < 5) return subscription;
-  const country = levels[4] || '*';
-  const storeId = levels[5] || '*';
-  if (country === '*' && storeId === '*') return 'all/all';
+  if (levels.length < 7) return subscription;
+  if (levels.at(-1) === '>' && levels.at(-2) === '*') return 'all/all';
+  const country = levels.at(-3) || '*';
+  const storeId = levels.at(-2) || '*';
+  if (country === 'all' && storeId === 'all') return 'all/all';
   if (country !== '*' && storeId === '*') return `${country}/all`;
   if (country !== '*' && storeId !== '>') return `${country}/${storeId}`;
   return subscription;
@@ -709,6 +810,7 @@ function topicMatchesSubscription(subscription, topic) {
 
 function connect() {
   try {
+    window.localStorage.setItem(LAST_CONNECTION_KEY, buildConnectionProfile().id);
     if (demoMode) {
       stopDemoStream();
       session = { isDemoSession: true };
@@ -997,6 +1099,10 @@ function renderStoreTopology(storeId) {
   `;
 }
 
+function openStoreDashboard(storeId) {
+  window.location.href = STORE_DASHBOARD_URL;
+}
+
 function toggleStoreTopology(storeId) {
   document.querySelectorAll('.store').forEach((entry) => entry.classList.toggle('selected', entry.dataset.store === storeId && selectedStoreId !== storeId));
   if (selectedStoreId === storeId) {
@@ -1043,9 +1149,22 @@ els.tlsToggle.addEventListener('click', toggleTls);
 els.demoToggle.addEventListener('click', () => setDemoMode(!demoMode));
 els.host.addEventListener('input', updateUrlPreview);
 els.port.addEventListener('input', updateUrlPreview);
-els.startVoiceBtn.addEventListener('click', startVoiceRecording);
-els.stopVoiceBtn.addEventListener('click', stopVoiceRecording);
 els.publishVoiceBtn.addEventListener('click', publishVoiceTranscript);
+els.saveConnectionBtn.addEventListener('click', saveCurrentConnection);
+els.deleteConnectionBtn.addEventListener('click', deleteSavedConnection);
+els.savedConnectionSelect.addEventListener('change', () => {
+  const selectedId = els.savedConnectionSelect.value;
+  if (!selectedId) return;
+  const profile = readSavedConnections().find((entry) => entry.id === selectedId);
+  if (!profile) return;
+  applyConnectionProfile(profile);
+  window.localStorage.setItem(LAST_CONNECTION_KEY, selectedId);
+  setStatus(`Loaded saved connection ${connectionProfileLabel(profile)}.`, 'ok');
+});
+['replayCommand', 'replayPattern', 'replayRateLimit', 'replayDestinationSuffix', 'replayCorrelationId', 'replayIncludeHeaders'].forEach((key) => {
+  els[key].addEventListener('input', refreshReplayPreview);
+  els[key].addEventListener('change', refreshReplayPreview);
+});
 els.routeSubscriptions.addEventListener('input', (event) => {
   const input = event.target.closest('input[data-store-sub]');
   if (!input) return;
@@ -1080,7 +1199,7 @@ document.addEventListener('click', (event) => {
   els.routeSubscriptions.querySelectorAll('[data-route-box].is-open').forEach((entry) => entry.classList.remove('is-open'));
 });
 document.querySelectorAll('.store').forEach((storeEl) => {
-  storeEl.addEventListener('click', () => toggleStoreTopology(storeEl.dataset.store));
+  storeEl.addEventListener('click', () => openStoreDashboard(storeEl.dataset.store));
 });
 els.storeTopology.addEventListener('click', (event) => {
   if (event.target.closest('.topology-close')) {
@@ -1088,8 +1207,9 @@ els.storeTopology.addEventListener('click', (event) => {
   }
 });
 updateUrlPreview();
+restoreLastConnection();
 renderRouteSubscriptions();
-initSpeechRecognition();
+refreshReplayPreview();
 
 if (window.location.hash.startsWith('#store=')) {
   const hashStoreId = decodeURIComponent(window.location.hash.slice(7));

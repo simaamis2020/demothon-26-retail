@@ -51,11 +51,26 @@
           <input id="password" type="password" value="" autocomplete="current-password" />
         </label>
         <label class="wide">Subscription Topic
-          <input id="topic" value="acmeretail/mdm/product/*/*/*/>" autocomplete="off" />
+          <input id="topic" value="acmeretail/mdm/*/*/storein/*/>" autocomplete="off" />
         </label>
         <div class="url-preview wide">
           <span>Broker URL</span>
           <code id="urlPreview">wss://YOUR_BROKER_HOST:443</code>
+        </div>
+      </div>
+
+      <div class="connection-card">
+        <div class="connect-options-title">Saved Connections</div>
+        <div class="form-grid">
+          <label class="wide">Connection Profile
+            <select id="savedConnectionSelect">
+              <option value="">Select a saved connection</option>
+            </select>
+          </label>
+        </div>
+        <div class="actions">
+          <button id="saveConnectionBtn" type="button" class="secondary">Save Current</button>
+          <button id="deleteConnectionBtn" type="button" class="secondary">Delete Saved</button>
         </div>
       </div>
 
@@ -71,27 +86,52 @@
       <div class="voice-card">
         <div class="voice-card-header">
           <div>
-            <p>Voice Commands</p>
-            <h3>Speech to Solace Event</h3>
+            <p>Replay Commands</p>
+            <h3>Replay Request Event</h3>
           </div>
-          <span class="voice-dot" id="voiceDot" aria-hidden="true"></span>
         </div>
 
         <label>Command Topic
-          <input id="voiceTopic" value="acme/retail/voice/command/v1/store-assistant" autocomplete="off" />
+          <input id="voiceTopic" value="acme/retail/replay/command/v1/master-data-distribution" autocomplete="off" />
         </label>
 
-        <label>Transcript
-          <textarea id="voiceTranscript" rows="5" placeholder="Click Record and speak. The transcript will appear here."></textarea>
+        <label>Command
+          <select id="replayCommand">
+            <option value="BULK_REPLAY" selected>BULK_REPLAY</option>
+          </select>
+        </label>
+
+        <label>Pattern
+          <input id="replayPattern" value="orders/bulk-replay/*/>" autocomplete="off" />
+        </label>
+
+        <div class="form-grid replay-grid">
+          <label>Rate Limit
+            <input id="replayRateLimit" type="number" value="500" inputmode="numeric" />
+          </label>
+          <label>Destination Suffix
+            <input id="replayDestinationSuffix" value="/compacted" autocomplete="off" />
+          </label>
+          <label>Correlation ID
+            <input id="replayCorrelationId" value="bootstrap-2026-05-05" autocomplete="off" />
+          </label>
+          <label>Original Headers
+            <select id="replayIncludeHeaders">
+              <option value="true" selected>true</option>
+              <option value="false">false</option>
+            </select>
+          </label>
+        </div>
+
+        <label>Payload Preview
+          <textarea id="voiceTranscript" rows="7" readonly></textarea>
         </label>
 
         <div class="voice-actions">
-          <button id="startVoiceBtn" type="button">Record</button>
-          <button id="stopVoiceBtn" type="button" class="secondary" disabled>Stop</button>
-          <button id="publishVoiceBtn" type="button" class="secondary">Send Event</button>
+          <button id="publishVoiceBtn" type="button">Send Replay Command</button>
         </div>
 
-        <div class="voice-status" id="voiceStatus">Browser speech recognition standby.</div>
+        <div class="voice-status" id="voiceStatus">Compose a replay request and send it over the current Solace session.</div>
       </div>
     </section>
 
