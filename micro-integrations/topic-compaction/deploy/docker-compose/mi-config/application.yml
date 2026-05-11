@@ -1,0 +1,174 @@
+# =============================================================================
+# Topic Compaction MI - external operator configuration
+# Mounted into the container at /app/external/spring/config/
+#
+# All ${...} placeholders below are resolved by Spring Boot from environment
+# variables at runtime. Real values live in ../../.env (gitignored).
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Solace connection settings + workflow lifecycle (MI Framework)
+# -----------------------------------------------------------------------------
+solace:
+  java:
+    host: ${SOLACE_HOST}
+    msg-vpn: ${SOLACE_VPN}
+    client-username: ${SOLACE_USERNAME}
+    client-password: ${SOLACE_PASSWORD}
+    connect-retries: -1
+    reconnect-retries: -1
+
+  connector:
+    workflows:
+      0: {enabled: true}
+      1: {enabled: true}
+      2: {enabled: true}
+      3: {enabled: false}
+      4: {enabled: false}
+      5: {enabled: false}
+      6: {enabled: false}
+      7: {enabled: false}
+
+    security:
+      enabled: false   # docker-compose dev only; enable + set users in production
+
+# -----------------------------------------------------------------------------
+# Workflow wiring - which Solace queues feed which MI workflow
+# -----------------------------------------------------------------------------
+spring:
+  cloud:
+    stream:
+      bindings:
+        # Workflow 0: Compaction. Reads from compaction.data queue,
+        # interceptor stores message in KV, audit producer rewrites payload to
+        # an audit JSON event published on <original>/compacted-ack.
+        input-0:
+          destination: compaction.data
+          binder: solace
+        output-0:
+          destination: placeholder/compacted-ack       # overwritten dynamically by audit interceptor
+          binder: solace
+
+        # Workflow 1: Replay. Reads command JSON from compaction.commands,
+        # producer interceptor looks up KV and republishes on <key>/compacted.
+        input-1:
+          destination: compaction.commands
+          binder: solace
+          consumer:
+            # concurrency=1 keeps BULK_REPLAY iterations sequential.
+            # Concurrent consumers can spam the broker beyond the
+            # configured rate-limit, and the framework's per-consumer
+            # bookkeeping is simpler with a single thread.
+            concurrency: 1
+        output-1:
+          destination: placeholder/compacted           # overwritten by replay interceptor
+          binder: solace
+
+        # Workflow 2: Solace Request/Reply Lookup. Reads from compaction.lookup
+        # queue (subscribed to compacted/lookup/>), producer responds on
+        # solace_replyTo.
+        input-2:
+          destination: compaction.lookup
+          binder: solace
+        output-2:
+          destination: placeholder/lookup-reply        # overwritten by lookup interceptor
+          binder: solace
+
+        # Bulk-Replay fanout (no MI workflow). BulkReplayService uses
+        # StreamBridge.send("output-3", msg) and the per-message
+        # destination is set via the solace_destination header.
+        # output-3 is a pre-registered binding (see internal
+        # application.yml), so the MI Framework knows about it.
+        # We override its destination here with a placeholder and
+        # explicitly auto-start the producer; workflow 3 stays
+        # disabled (we use the binding without the workflow).
+        output-3:
+          destination: placeholder/bulk-replay-fanout
+          binder: solace
+          producer:
+            auto-startup: true
+
+      solace:
+        default:
+          producer:
+            destination-type: topic                    # publish to topics, not queues
+
+# -----------------------------------------------------------------------------
+# Topic Compaction MI specifics (defaults are mostly fine; tune if needed)
+# -----------------------------------------------------------------------------
+topic-compaction:
+  kvstore:
+    backend: rocksdb
+    rocksdb:
+      path: /app/data/rocksdb
+  compaction:
+    binding-names: [input-0]
+    audit-suffix: /compacted-ack
+    loop-protection-header: x-compacted-replay
+    ordering:
+      header: ""                  # empty -> always-last-wins
+    audit:
+      # V1.1.0: emit audits via separate JCSMP session + DIRECT.
+      # Flip to false to disable audit emission entirely; the
+      # consumer-ack flow is unchanged either way.
+      enabled: true
+      client-name-suffix: "-audit"
+  replay:
+    binding-names: [input-1]
+    target-suffix: /compacted
+    loop-protection-header: x-compacted-replay
+  lookup:
+    binding-names: [input-2]
+    key-header: x-compaction-key
+    topic-key-prefix: "compacted/lookup/"
+  security:
+    # REST + Actuator authentication. Disabled by default in the
+    # docker-compose dev mode for convenience; flip to true (and set
+    # the MI_USER_PASSWORD / MI_ADMIN_PASSWORD env vars in .env) to
+    # exercise the role matrix locally. The K8s overlay enables it
+    # unconditionally.
+    enabled: ${MI_SECURITY_ENABLED:false}
+    user:
+      name: ${MI_USER_NAME:mi-user}
+      password: ${MI_USER_PASSWORD:change-me-user}
+    admin:
+      name: ${MI_ADMIN_NAME:mi-admin}
+      password: ${MI_ADMIN_PASSWORD:change-me-admin}
+  provisioning:
+    # SEMP-driven idempotent queue + subscription creation at
+    # startup (Phase 4.2). Off by default; set
+    # MI_PROVISIONING_ENABLED=true in .env (plus SEMP_URL /
+    # SEMP_USER / SEMP_PASS) to enable.
+    enabled: ${MI_PROVISIONING_ENABLED:false}
+    fail-on-error: false
+    semp:
+      url: ${SEMP_URL:}
+      username: ${SEMP_USER:}
+      password: ${SEMP_PASS:}
+      msg-vpn: ${SEMP_VPN:${SOLACE_VPN}}
+    queues:
+      - name: compaction.data
+        subscriptions:
+          - "orders/>"
+      - name: compaction.commands
+        subscriptions:
+          - "compacted/command/>"
+      - name: compaction.lookup
+        subscriptions:
+          - "compacted/lookup/>"
+
+# -----------------------------------------------------------------------------
+# Spring Boot Actuator - health, metrics, prometheus
+# -----------------------------------------------------------------------------
+management:
+  endpoint:
+    health:
+      show-components: always
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    com.solace.labs.mi.topiccompaction: DEBUG
+    com.solace.connector.core: INFO
+    com.solace.spring.cloud.stream.binder: INFO

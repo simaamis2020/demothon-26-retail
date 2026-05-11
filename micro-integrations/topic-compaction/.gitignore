@@ -1,0 +1,36 @@
+# Build output
+target/
+*.class
+*.jar
+*.war
+*.tar
+.flattened-pom.xml
+
+# Local data
+data/
+logs/
+*.log
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+
+# Maven wrapper extracted
+.mvn/wrapper/maven-wrapper.jar
+
+# Secrets - real values live ONLY in .env, never committed.
+# Only .env.example (committed) carries placeholders.
+.env
+.env.*
+!.env.example
+
+# Rendered K8s manifests with real secret values; only the template
+# is checked in.
+deploy/k8s/20-secret.yaml

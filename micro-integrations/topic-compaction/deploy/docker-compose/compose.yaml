@@ -1,0 +1,40 @@
+# =============================================================================
+# Topic Compaction MI - docker-compose
+#
+# This stack runs ONLY the MI; bring your own Solace broker (Solace Cloud, the
+# agent-mesh-deployment broker, or any other PubSub+ instance). Connection
+# settings come from ../../.env (see .env.example for both common presets).
+#
+# Provision queues + topic subscriptions on YOUR broker before bringing the
+# MI up. The reference script ../../examples/init-queues.sh demonstrates the
+# SEMP API calls; adapt the BROKER variable for your target.
+# =============================================================================
+
+services:
+  topic-compaction-mi:
+    image: ${MI_IMAGE:-registry.solace.lab/sam-topic-compaction-mi:1.2.0}
+    env_file:
+      - ../../.env
+    volumes:
+      - type: bind
+        source: ./mi-config/
+        target: /app/external/spring/config/
+        read_only: true
+      - kvstore-data:/app/data
+    ports:
+      - "${MI_PORT:-18090}:8090"
+    # Graceful-shutdown contract:
+    #   server.shutdown=graceful + 25s drain in app.yml; the
+    #   container gets 30s before SIGKILL so the JVM has a 5s
+    #   safety margin to flush RocksDB WAL.
+    stop_grace_period: 30s
+    stop_signal: SIGTERM
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8090/actuator/health/liveness"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  kvstore-data:
